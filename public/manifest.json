@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Sidekick File Manager",
+  "version": "1.0",
+  "description": "Local file manager sidepanel with silent sidecar logic.",
+  "permissions": ["sidePanel", "storage"],
+  "host_permissions": [],
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "action": {
+    "default_title": "Open Sidekick"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
