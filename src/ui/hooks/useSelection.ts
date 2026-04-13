@@ -21,10 +21,15 @@ export function useSelection<T>(items: T[], multiSelect = true) {
           // If it is the last item in the sequence (even accounting for trailing nulls)
           const isHighestOrderedItem = !newSelection.slice(existingIndex + 1).some(Boolean);
 
-          if (!multiSelect || (!isMeta && !isShift && newSelection.filter(Boolean).length === 1)) {
+          if (!multiSelect || (!isMeta && !isShift && !isAlt && newSelection.filter(Boolean).length === 1)) {
              newSelection[existingIndex] = null;
              while(newSelection.length > 0 && newSelection[newSelection.length - 1] === null) newSelection.pop();
              return newSelection;
+          }
+
+          // If no modifiers held and multiple selected, override entire selection to just this item
+          if (!isMeta && !isShift && !isAlt && newSelection.filter(Boolean).length > 1) {
+             return [id];
           }
 
           // If Alt+Click, OR it is the tail item, silently remove and close gap
@@ -51,8 +56,8 @@ export function useSelection<T>(items: T[], multiSelect = true) {
           return newSelection; 
         }
 
-        // Selecting new item
-        if (!multiSelect && !isMeta && !isShift) {
+        // Selecting new item -> Unmodified click wipes previous selection
+        if (!multiSelect || (!isMeta && !isShift && !isAlt)) {
           return [id];
         }
 

@@ -12,7 +12,7 @@ import { FolderDiffModal } from '../../ui/components/FolderDiffModal';
 import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, Archive, BoxSelect, Columns as CompareIcon, Bookmark } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, Archive, BoxSelect, Columns as CompareIcon, Bookmark, FileText } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -37,7 +37,7 @@ function App() {
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   
   // Modals & Popups
-  const [previewItem, setPreviewItem] = useState<GridItem | null>(null);
+  const [previewItem, setPreviewItem] = useState<{ item: GridItem, forceText?: boolean } | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [pathPromptOpen, setPathPromptOpen] = useState(false);
   const [gapPrompt, setGapPrompt] = useState<{ id: string, resolve: (res: boolean) => void } | null>(null);
@@ -145,7 +145,7 @@ function App() {
        if (item.name === '..') handleNavigateUp();
        else scanAndSetDirectory(item.handle, false);
     } else {
-       setPreviewItem(item);
+       setPreviewItem({ item });
     }
   }, [handleNavigateUp, scanAndSetDirectory]);
 
@@ -419,7 +419,7 @@ function App() {
           </div>
         )}
 
-        <main className="flex-1 flex flex-col items-center bg-dark-900 relative">
+        <main className="flex-1 flex flex-col bg-dark-900 relative overflow-hidden w-full h-full">
           {loading ? (
              <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 backdrop-blur-sm">
                 <div className="flex flex-col items-center gap-4">
@@ -428,7 +428,7 @@ function App() {
                 </div>
              </div>
           ) : pathStack.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 max-w-xl text-center">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 max-w-xl text-center m-auto h-full w-full">
               <FolderOpen size={64} className="mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
               <h2 className="text-2xl font-bold text-white mb-2">Welcome to Sidekick</h2>
               <button onClick={handleOpenRootFolder} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg font-medium text-white transition-all transform hover:scale-105 mb-12 mt-4">Select Local Directory</button>
@@ -447,7 +447,7 @@ function App() {
               )}
             </div>
           ) : processedGroups.reduce((acc, curr) => acc + curr.items.length, 0) === 0 ? (
-             <div className="flex-1 flex flex-col items-center justify-center text-gray-500"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
+             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
           ) : viewMode === 'gallery' ? (
             <GalleryView
               groups={processedGroups}
@@ -529,12 +529,15 @@ function App() {
             {contextMenu.item.type === 'file' && (
                <button onClick={() => { handleCopyContents(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><ClipboardPaste size={14}/> Copy File Contents</button>
             )}
+            {contextMenu.item.type === 'file' && (
+               <button onClick={() => { setPreviewItem({ item: contextMenu.item, forceText: true }); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><FileText size={14}/> View as Text</button>
+            )}
             <button onClick={() => { setLeftCompareItem(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><CompareIcon size={14}/> Set as L Compare</button>
             <button onClick={() => { if (leftCompareItem) setCompareActive({ left: leftCompareItem, right: contextMenu.item }); closeContext(); }} disabled={!leftCompareItem} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left disabled:opacity-50 disabled:hover:bg-transparent"><CompareIcon size={14}/> Compare with L</button>
          </div>
       )}
 
-      {previewItem && <PreviewModal item={previewItem} onClose={() => setPreviewItem(null)} />}
+      {previewItem && <PreviewModal item={previewItem.item} forceText={previewItem.forceText} onClose={() => setPreviewItem(null)} />}
       
       {compareActive && compareActive.left.type === 'file' && compareActive.right.type === 'file' && (
          <CompareModal itemLeft={compareActive.left} itemRight={compareActive.right} onClose={() => setCompareActive(null)} />

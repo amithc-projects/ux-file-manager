@@ -5,10 +5,11 @@ import { FileViewer } from './FileViewer';
 
 interface PreviewModalProps {
   item: GridItem;
+  forceText?: boolean;
   onClose: () => void;
 }
 
-export function PreviewModal({ item, onClose }: PreviewModalProps) {
+export function PreviewModal({ item, forceText, onClose }: PreviewModalProps) {
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -32,7 +33,7 @@ export function PreviewModal({ item, onClose }: PreviewModalProps) {
       </div>
 
       <div className="relative w-full max-w-6xl h-[85vh] flex items-center justify-center bg-dark-900 border border-dark-700 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden">
-          <FileViewer item={item} />
+          <FileViewer item={item} forceText={forceText} />
       </div>
 
     </div>

@@ -107,7 +107,38 @@ function MediaViewer({ file, type }: { file: File, type: 'image' | 'video' | 'pd
     );
 }
 
-export function FileViewer({ item }: { item: GridItem }) {
+function CodeViewer({ text, item }: { text: string | null, item: GridItem }) {
+    if (text === null) return <div className="text-gray-400 p-8">Parsing Markup stream...</div>;
+    return (
+        <div className="w-full h-full overflow-hidden p-0 bg-dark-950 text-gray-300 border border-dark-700 shadow-inner rounded-xl flex flex-col">
+            <div className="px-4 py-3 bg-dark-900 border-b border-dark-700 flex items-center justify-between shadow-sm shrink-0">
+               <span className="font-mono text-[10px] uppercase font-bold text-gray-500 tracking-widest">Source String</span>
+               <span className="font-mono text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">{item.pair.id}</span>
+            </div>
+            <div className="flex-1 overflow-auto p-4 shrink-0 h-0 min-h-0 relative select-text">
+                <pre className="font-mono text-[13px] leading-relaxed text-gray-300 w-max min-w-full"><code className="block w-full whitespace-pre-wrap">{text}</code></pre>
+            </div>
+        </div>
+    );
+}
+
+function HtmlViewer({ text, item }: { text: string | null, item: GridItem }) {
+    if (text === null) return <div className="text-gray-400 p-8">Parsing Markup stream...</div>;
+    return (
+        <div className="w-full h-full overflow-hidden bg-dark-950 border border-dark-700 shadow-inner rounded-xl flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-dark-700">
+            <div className="flex-1 overflow-auto p-4 flex flex-col relative h-full">
+               <span className="absolute top-2 right-4 font-mono text-[10px] font-bold text-gray-500 bg-dark-900 border border-dark-700 shadow-sm px-2 py-0.5 rounded z-10 pointer-events-none tracking-widest uppercase">Dom Root</span>
+               <pre className="font-mono text-[13px] leading-relaxed text-gray-300 min-w-full block pt-6"><code className="block w-full">{text}</code></pre>
+            </div>
+            <div className="flex-1 h-full bg-white relative flex flex-col overflow-hidden">
+               <span className="absolute top-2 right-4 font-mono text-[10px] font-bold shadow bg-gray-100 border border-gray-300 text-gray-500 px-2 py-0.5 rounded z-10 pointer-events-none tracking-widest uppercase">Sandbox Frame</span>
+               <iframe className="w-full h-full border-none flex-1 mt-0 bg-white" srcDoc={text} sandbox="allow-scripts allow-same-origin" />
+            </div>
+        </div>
+    );
+}
+
+export function FileViewer({ item, forceText }: { item: GridItem, forceText?: boolean }) {
    const [fileObj, setFileObj] = useState<File | null>(null);
    const [textData, setTextData] = useState<string | null>(null);
    const [error, setError] = useState(false);
@@ -117,42 +148,62 @@ export function FileViewer({ item }: { item: GridItem }) {
        let isActive = true;
        setFileObj(null); setTextData(null); setError(false);
 
-       item.pair.mainHandle.getFile().then(f => {
+       item.pair.mainHandle.getFile().then(async f => {
            if (!isActive) return;
            setFileObj(f);
            const ext = item.pair.id.split('.').pop()?.toLowerCase();
-           if (['json', 'md', 'markdown', 'txt'].includes(ext || '')) {
-               f.text().then(t => isActive && setTextData(t)).catch(() => isActive && setError(true));
+           const isTextPath = ['json', 'md', 'markdown', 'txt', 'js', 'ts', 'tsx', 'jsx', 'sh', 'css', 'html', 'csv'].includes(ext || '');
+
+           if (forceText || isTextPath) {
+               try {
+                  const buffer = await f.arrayBuffer();
+                  let text = '';
+                  const LIMIT = 500 * 1024; // 500 KB ceiling
+                  if (buffer.byteLength > LIMIT) {
+                     text = new TextDecoder().decode(buffer.slice(0, LIMIT)) + '\n\n... [TRUNCATED - EXCEEDS 500KB RENDERER SAFETY LIMIT] ...';
+                  } else {
+                     text = new TextDecoder().decode(buffer);
+                  }
+                  if (isActive) setTextData(text);
+               } catch(ex) {
+                  if (isActive) setError(true);
+               }
            }
        }).catch(() => {
            if (isActive) setError(true);
        });
 
        return () => { isActive = false; }
-   }, [item]);
+   }, [item, forceText]);
 
    if (item.type !== 'file') return null;
 
    const ext = item.pair.id.split('.').pop()?.toLowerCase() || '';
 
-   if (error) return <div className="text-red-400 flex items-center gap-2 p-4 bg-red-900/20 border border-red-500/50 rounded-xl"><FileIcon size={20} /> Access Error Processing Stream</div>;
+   if (error) return <div className="text-red-400 flex items-center gap-2 m-auto p-4 bg-red-900/20 border border-red-500/50 rounded-xl"><FileIcon size={20} /> Access Error Processing Stream</div>;
    if (!fileObj) return (
-       <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-4">
+       <div className="flex flex-col items-center justify-center m-auto opacity-50 space-y-4">
            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
        </div>
    );
+
+   if (forceText) return <CodeViewer text={textData} item={item} />;
 
    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext);
    const isVideo = ['mp4', 'webm', 'mov', 'ogg'].includes(ext);
    const isPDF = ['pdf'].includes(ext);
    const isZip = ['zip'].includes(ext);
    const isJson = ['json'].includes(ext);
-   const isMd = ['md', 'markdown', 'txt'].includes(ext);
+   const isMd = ['md', 'markdown'].includes(ext);
+   const isCode = ['js', 'ts', 'tsx', 'jsx', 'sh', 'css', 'csv', 'txt'].includes(ext);
+   const isHtml = ['html', 'htm'].includes(ext);
 
    if (isImage) return <MediaViewer file={fileObj} type="image" />;
    if (isVideo) return <MediaViewer file={fileObj} type="video" />;
    if (isPDF) return <MediaViewer file={fileObj} type="pdf" />;
    if (isZip) return <ZipViewer file={fileObj} />;
+   if (isCode) return <CodeViewer text={textData} item={item} />;
+   if (isHtml) return <HtmlViewer text={textData} item={item} />;
 
    if (isJson) {
        if (textData === null) return <div className="text-gray-400 p-8">Parsing JSON stream...</div>;
