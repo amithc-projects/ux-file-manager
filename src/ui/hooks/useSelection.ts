@@ -79,14 +79,6 @@ export function useSelection<T>(items: T[], multiSelect = true) {
     setSelectedIdsArray([]);
   }, []);
 
-  const fillGap = useCallback((index: number, id: string) => {
-      setSelectedIdsArray(prev => {
-          const arr = [...prev];
-          arr[index] = id;
-          return arr;
-      });
-  }, []);
-
   // Expose both the raw array and a derived Set for O(1) checks in render
   const selectedIds = new Set(selectedIdsArray.filter(Boolean) as string[]);
 

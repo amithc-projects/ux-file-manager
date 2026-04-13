@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Columns, MoveHorizontal } from 'lucide-react';
 import { GridItem } from '../../core/models/FilePair';
 

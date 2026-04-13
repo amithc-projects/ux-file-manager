@@ -4,12 +4,12 @@ import { WorkspaceFolder } from '../models/FilePair';
 export class StorageService {
   
   // --- PERMISSIONS ---
-  static async verifyPermission(fileHandle: FileSystemHandle, mode: FileSystemPermissionMode = 'read'): Promise<boolean> {
+  static async verifyPermission(fileHandle: FileSystemHandle, mode: string = 'read'): Promise<boolean> {
     const opts = { mode };
-    if ((await fileHandle.queryPermission(opts)) === 'granted') {
+    if ((await (fileHandle as any).queryPermission(opts)) === 'granted') {
       return true;
     }
-    if ((await fileHandle.requestPermission(opts)) === 'granted') {
+    if ((await (fileHandle as any).requestPermission(opts)) === 'granted') {
       return true;
     }
     return false;

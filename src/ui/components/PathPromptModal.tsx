@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, FolderPlus } from 'lucide-react';
 
 interface PathPromptModalProps {

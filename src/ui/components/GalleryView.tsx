@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
 import { Folder, Film, FileIcon, Image as ImageIcon } from 'lucide-react';
@@ -27,7 +27,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, onClick, onDo
     const isVideo = isFile && /\.(mp4|webm|ogg|mov)$/i.test(itemName);
     const thumbnailUrl = useThumbnails(pair?.mainHandle);
 
-    const clickTimeout = React.useRef<NodeJS.Timeout | null>(null);
+    const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleSingleClick = (e: React.MouseEvent) => {
         e.stopPropagation();

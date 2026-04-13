@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Info, Folder as FolderIcon, FileIcon, Settings, Image as ImageIcon, BoxSelect, Trash2, X, Bookmark } from 'lucide-react';
+import { useState } from 'react';
+import { Info, Folder as FolderIcon, FileIcon, Settings, BoxSelect, X, Bookmark } from 'lucide-react';
 import { GridItem, WorkspaceFolder } from '../../core/models/FilePair';
 
 interface InspectorPanelProps {

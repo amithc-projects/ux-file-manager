@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
-import { GridItem, FilePair, WorkspaceFolder } from '../../core/models/FilePair';
+import { GridItem, WorkspaceFolder } from '../../core/models/FilePair';
 import { ScannerService } from '../../core/services/ScannerService';
 import { StorageService } from '../../core/services/StorageService';
-import { FileGrid, GroupedItems, ViewMode } from '../../ui/components/FileGrid';
+import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { GalleryView } from '../../ui/components/GalleryView';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
@@ -12,7 +12,7 @@ import { FolderDiffModal } from '../../ui/components/FolderDiffModal';
 import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, Archive, BoxSelect, Columns as CompareIcon, Bookmark, FileText } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Columns as CompareIcon, Bookmark, FileText } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -49,7 +49,7 @@ function App() {
   
   // Collection & Clipboard
   const [clipboardItems, setClipboardItems] = useState<GridItem[]>([]);
-  const [clipboardAction, setClipboardAction] = useState<ActionType>(null);
+  const [, _setClipboardAction] = useState<ActionType>(null);
   const [collectionBasket, setCollectionBasket] = useState<GridItem[]>([]);
 
   const { selectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
@@ -117,7 +117,7 @@ function App() {
 
   const handleOpenRootFolder = async () => {
     try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
       await scanAndSetDirectory(handle, true);
     } catch (err) {}
   };
@@ -269,7 +269,7 @@ function App() {
      return id === selectedIdsArray.find(x => x !== null);
   });
 
-  const parentName = currentDir ? currentDir.name : '';
+
 
   const processedGroups = useMemo(() => {
     let processable = (pathStack.length <= 1 ? items : [{ type: 'folder' as const, name: '..', handle: {} as any, lastModified: 0, size: 0 }, ...items]).filter(i => {
@@ -300,7 +300,7 @@ function App() {
     
     const groupsMap: Record<string, GridItem[]> = { 'Navigation': [], 'Folders': [], 'Images': [], 'Documents': [], 'Videos': [], 'Other Files': [] };
     processable.forEach(item => {
-      if (item.name === '..') groupsMap['Navigation'].push(item);
+      if (item.type === 'folder' && item.name === '..') groupsMap['Navigation'].push(item);
       else if (item.type === 'folder') groupsMap['Folders'].push(item);
       else if (item.type === 'file') {
          const ext = item.pair.id.split('.').pop()?.toLowerCase();
@@ -406,7 +406,7 @@ function App() {
                   )}
                   <button onClick={() => {
                      setClipboardItems(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)));
-                     setClipboardAction('copy');
+                     _setClipboardAction('copy');
                      clearSelection();
                   }} className="flex items-center gap-2 px-4 py-2 hover:bg-dark-700 rounded-xl text-sm font-medium transition-colors">
                     <Copy size={16} /> Copy
@@ -518,7 +518,7 @@ function App() {
          <div className="fixed z-[200] w-56 py-1 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1" style={{ top: contextMenu.y, left: contextMenu.x }}>
             {contextMenu.item.type === 'folder' && contextMenu.item.name !== '..' && (
                <button onClick={async () => {
-                  const bk = await StorageService.saveBookmark(contextMenu.item.handle as any);
+                  const bk = await StorageService.saveBookmark((contextMenu.item as any).handle);
                   setBookmarks(bk);
                   closeContext();
                }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-yellow-600 hover:text-white transition-colors text-left border-b border-dark-700 pb-2 mb-1">

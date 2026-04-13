@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import ReactMarkdown from 'react-markdown';
 import { GridItem } from '../../core/models/FilePair';
@@ -113,7 +113,7 @@ function CodeViewer({ text, item }: { text: string | null, item: GridItem }) {
         <div className="w-full h-full overflow-hidden p-0 bg-dark-950 text-gray-300 border border-dark-700 shadow-inner rounded-xl flex flex-col">
             <div className="px-4 py-3 bg-dark-900 border-b border-dark-700 flex items-center justify-between shadow-sm shrink-0">
                <span className="font-mono text-[10px] uppercase font-bold text-gray-500 tracking-widest">Source String</span>
-               <span className="font-mono text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">{item.pair.id}</span>
+               <span className="font-mono text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">{(item as any).pair?.id}</span>
             </div>
             <div className="flex-1 overflow-auto p-4 shrink-0 h-0 min-h-0 relative select-text">
                 <pre className="font-mono text-[13px] leading-relaxed text-gray-300 w-max min-w-full"><code className="block w-full whitespace-pre-wrap">{text}</code></pre>
@@ -122,7 +122,7 @@ function CodeViewer({ text, item }: { text: string | null, item: GridItem }) {
     );
 }
 
-function HtmlViewer({ text, item }: { text: string | null, item: GridItem }) {
+function HtmlViewer({ text }: { text: string | null, item: GridItem }) {
     if (text === null) return <div className="text-gray-400 p-8">Parsing Markup stream...</div>;
     return (
         <div className="w-full h-full overflow-hidden bg-dark-950 border border-dark-700 shadow-inner rounded-xl flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-dark-700">

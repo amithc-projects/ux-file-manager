@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, GitCompare } from 'lucide-react';
-import { ScannerService } from '../../core/services/ScannerService';
 
 interface FolderDiffModalProps {
   handleLeft: FileSystemDirectoryHandle;

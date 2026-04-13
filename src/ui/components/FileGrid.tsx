@@ -1,7 +1,7 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { FileIcon, Image as ImageIcon, Folder, FileText, Film } from 'lucide-react';
+import { FileIcon, Image as ImageIcon, Folder, Film } from 'lucide-react';
 
 export type ViewMode = 'grid' | 'gallery' | 'list';
 
@@ -28,7 +28,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
   
-  const clickTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSingleClick = (e: React.MouseEvent) => {
      e.stopPropagation();
