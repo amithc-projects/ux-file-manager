@@ -12,7 +12,7 @@ import { FolderDiffModal } from '../../ui/components/FolderDiffModal';
 import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Columns as CompareIcon, Bookmark, FileText } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Columns as CompareIcon, Bookmark, FileText, X } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -58,6 +58,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   const [pathPromptOpen, setPathPromptOpen] = useState(false);
   const [gapPrompt, setGapPrompt] = useState<{ id: string, resolve: (res: boolean) => void } | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [globalTooltip, setGlobalTooltip] = useState<{ item: GridItem, x: number, y: number } | null>(null);
   
   // Advanced Selectors
   const [leftCompareItem, setLeftCompareItem] = useState<GridItem | null>(null);
@@ -171,6 +172,11 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
      if (hasPerm) await scanAndSetDirectory(ws.handle, true);
   };
 
+  const handleOpenBookmark = async (ws: WorkspaceFolder) => {
+     const hasPerm = await StorageService.verifyPermission(ws.handle, 'readwrite');
+     if (hasPerm) await scanAndSetDirectory(ws.handle, false);
+  };
+
   const handleNavigateUp = useCallback(() => {
     if (pathStack.length <= 1) return; 
     const newStack = [...pathStack];
@@ -196,12 +202,28 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   const handleItemClick = (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
       closeContext();
+      if (id === '..') return;
       toggleSelection(id, e.shiftKey, e.metaKey || e.ctrlKey, e.altKey, () => {
          return new Promise<boolean>((resolve) => {
              setGapPrompt({ id, resolve });
          });
       });
   };
+
+  const tooltipTimeout = React.useRef<number | null>(null);
+  
+  const handleItemHover = useCallback((item: GridItem, e: React.MouseEvent) => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+      tooltipTimeout.current = window.setTimeout(() => {
+          setGlobalTooltip({ item, x: rect.right + 10, y: Math.max(10, rect.top + (rect.height / 2) - 40) });
+      }, 500);
+  }, []);
+
+  const handleItemLeave = useCallback(() => {
+      if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+      setGlobalTooltip(null);
+  }, []);
 
   const pathStackRef = React.useRef(pathStack);
   pathStackRef.current = pathStack; // Synchronous bind during render pipeline before effects!
@@ -258,6 +280,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   };
 
   const executeDeleteMode = async (targetedItems: GridItem[]) => {
+    setDeleteModalOpen(false);
     if (!currentDir) return;
     try {
       setLoading(true);
@@ -324,6 +347,64 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
          setLoading(false);
          await refreshCurrentDirectory();
       }
+  };
+
+  const generateUniqueName = async (dirHandle: FileSystemDirectoryHandle, originalName: string): Promise<string> => {
+     try {
+         await dirHandle.getFileHandle(originalName, { create: false });
+     } catch (e: any) {
+         if (e.name === 'NotFoundError') return originalName;
+     }
+     
+     const dotIdx = originalName.lastIndexOf('.');
+     const base = dotIdx !== -1 ? originalName.substring(0, dotIdx) : originalName;
+     const ext = dotIdx !== -1 ? originalName.substring(dotIdx) : '';
+     
+     let n = 1;
+     while (true) {
+         const testName = n === 1 ? `${base} (Copy)${ext}` : `${base} (Copy ${n})${ext}`;
+         try {
+             await dirHandle.getFileHandle(testName, { create: false });
+             n++;
+         } catch (e: any) {
+             if (e.name === 'NotFoundError') return testName;
+             throw e;
+         }
+     }
+  };
+
+  const executePasteClipboard = async () => {
+         const targetDir = pathStack[pathStack.length - 1];
+         if (!targetDir || clipboardItems.length === 0) return;
+         setLoading(true);
+         try {
+             for (const item of clipboardItems) {
+                 if (item.type === 'file') {
+                    const uniqueId = await generateUniqueName(targetDir, item.pair.id);
+                    const sourceFile = await item.pair.mainHandle.getFile();
+                    const targetFileHandle = await targetDir.getFileHandle(uniqueId, { create: true });
+                    const writable = await (targetFileHandle as any).createWritable();
+                    await writable.write(sourceFile);
+                    await writable.close();
+          
+                    if (item.pair.sidecarHandle) {
+                       const sidecarSourceFile = await item.pair.sidecarHandle.getFile();
+                       const targetSidecarHandle = await targetDir.getFileHandle(uniqueId + '.json', { create: true });
+                       const wSidecar = await (targetSidecarHandle as any).createWritable();
+                       await wSidecar.write(sidecarSourceFile);
+                       await wSidecar.close();
+                    }
+                 }
+             }
+             if (onTelemetry) onTelemetry('sidekick:action', { action: 'paste', count: clipboardItems.length });
+         } catch (err: any) {
+             if (onTelemetry) onTelemetry('sidekick:error', { message: 'Paste interrupted: ' + err?.message });
+         } finally {
+             setClipboardItems([]);
+             _setClipboardAction(null);
+             setLoading(false);
+             await refreshCurrentDirectory();
+         }
   };
 
   const handleCopyContents = async (item: GridItem) => {
@@ -502,6 +583,18 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
                   </button>
                 </>
              )}
+             {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-6 bg-dark-600 mx-2"></div>}
+             {clipboardItems.length > 0 && (
+                <>
+                  <div className="px-4 text-sm font-bold text-white border-r border-dark-600">{clipboardItems.length} Copied</div>
+                  <button onClick={executePasteClipboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl text-sm font-medium transition-colors border border-blue-500/30 ml-2">
+                    <ClipboardPaste size={16} /> Paste Here
+                  </button>
+                  <button onClick={() => setClipboardItems([])} className="flex items-center justify-center px-3 py-2 hover:bg-red-500/20 hover:text-red-400 rounded-xl text-sm font-medium transition-colors ml-1" title="Clear Clipboard">
+                    <X size={16} />
+                  </button>
+                </>
+             )}
           </div>
         )}
 
@@ -558,6 +651,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
                  e.stopPropagation();
                  setContextMenu({ x: e.pageX, y: e.pageY, item });
               }}
+              onItemHover={handleItemHover}
+              onItemLeave={handleItemLeave}
             />
           )}
         </main>
@@ -570,7 +665,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
            onRemoveFromCollection={(id) => setCollectionBasket(prev => prev.filter(i => (i.type === 'file' ? i.pair.id : i.name) !== id))}
            onCollectionBatchAction={handleCollectionBatch}
            onRemoveBookmark={async (id) => { const bk = await StorageService.removeBookmark(id); setBookmarks(bk); }}
-           onOpenBookmark={handleResumeWorkspace}
+           onOpenBookmark={handleOpenBookmark}
         />
       </div>
 
@@ -623,7 +718,26 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
          </div>
       )}
 
-      {previewItem && <PreviewModal item={previewItem.item} forceText={previewItem.forceText} onClose={() => setPreviewItem(null)} />}
+      {previewItem && <PreviewModal 
+         item={previewItem.item} 
+         forceText={previewItem.forceText} 
+         onClose={() => setPreviewItem(null)} 
+         onSaveNewFile={async (blob, name) => {
+            const targetDir = pathStack[pathStack.length - 1];
+            if (!targetDir) return;
+            setLoading(true);
+            try {
+               const uniqueId = await generateUniqueName(targetDir, name);
+               const targetFileHandle = await targetDir.getFileHandle(uniqueId, { create: true });
+               const writable = await (targetFileHandle as any).createWritable();
+               await writable.write(blob);
+               await writable.close();
+            } finally {
+               setLoading(false);
+               await refreshCurrentDirectory();
+            }
+         }}
+      />}
       
       {compareActive && compareActive.left.type === 'file' && compareActive.right.type === 'file' && (
          <CompareModal itemLeft={compareActive.left} itemRight={compareActive.right} onClose={() => setCompareActive(null)} />
@@ -631,6 +745,21 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
 
       {compareActive && compareActive.left.type === 'folder' && compareActive.right.type === 'folder' && (
          <FolderDiffModal handleLeft={compareActive.left.handle as any} handleRight={compareActive.right.handle as any} onClose={() => setCompareActive(null)} />
+      )}
+
+      {globalTooltip && (
+          <div className="fixed z-[300] p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl pointer-events-none animate-in fade-in zoom-in slide-in-from-left-2 duration-200" style={{ left: globalTooltip.x, top: globalTooltip.y, maxWidth: 280 }}>
+             <p className="text-sm font-bold text-gray-100 truncate">{globalTooltip.item.type === 'file' ? globalTooltip.item.pair.id : globalTooltip.item.name}</p>
+             {globalTooltip.item.type === 'file' ? (
+                <div className="mt-2 flex flex-col gap-1">
+                   <p className="text-xs text-blue-400 font-mono tracking-wider">.{globalTooltip.item.pair.id.split('.').pop()?.toUpperCase() || 'FILE'}</p>
+                   <div className="flex items-center gap-4 text-xs text-gray-400">
+                      <span>{globalTooltip.item.pair.size ? `${(globalTooltip.item.pair.size / 1024).toFixed(2)} KB` : '0 KB'}</span>
+                      <span>{globalTooltip.item.pair.lastModified ? new Date(globalTooltip.item.pair.lastModified).toLocaleDateString() : 'N/A'}</span>
+                   </div>
+                </div>
+             ) : <p className="text-xs text-gray-500 mt-1">Directory / Folder</p>}
+          </div>
       )}
     </div>
   );

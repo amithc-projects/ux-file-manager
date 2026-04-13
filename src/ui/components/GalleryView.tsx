@@ -1,7 +1,7 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { Folder, Film, FileIcon, Image as ImageIcon } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
 
 interface GalleryViewProps {
@@ -15,8 +15,8 @@ interface GalleryViewProps {
 import { FileViewer } from './FileViewer';
 
 // Minimal Chip for Horizontal Strip
-function GalleryThumbnail({ item, isSelected, selectionOrderIndex, onClick, onDoubleClick, onContextMenu }: { 
-    item: GridItem, isSelected: boolean, selectionOrderIndex: number | null,
+function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected, onClick, onDoubleClick, onContextMenu }: { 
+    item: GridItem, isSelected: boolean, selectionOrderIndex: number | null, totalSelected: number,
     onClick: (e: React.MouseEvent) => void, onDoubleClick: (e: React.MouseEvent) => void, onContextMenu: (e: React.MouseEvent) => void 
 }) {
     const isFile = item.type === 'file';
@@ -53,7 +53,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, onClick, onDo
        if (selectionOrderIndex === null) return null;
        return (
           <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-blue-500 text-white shadow-lg border border-white flex items-center justify-center font-bold text-[10px] pointer-events-none z-20">
-             {selectionOrderIndex}
+             {totalSelected === 1 ? <Check size={12} strokeWidth={3} /> : selectionOrderIndex}
           </div>
        );
     };
@@ -138,6 +138,7 @@ export function GalleryView({ groups, selectedIdsArray, onItemClick, onItemDoubl
                                key={id} item={item} 
                                isSelected={isSelected}
                                selectionOrderIndex={selIndex !== -1 ? selIndex + 1 : null}
+                               totalSelected={selectedIdsArray.filter(Boolean).length}
                                onClick={(e) => onItemClick(id, e)}
                                onDoubleClick={(e) => onItemDoubleClick(item, e)}
                                onContextMenu={(e) => onItemContextMenu(item, e)}

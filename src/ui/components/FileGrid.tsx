@@ -1,7 +1,7 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { FileIcon, Image as ImageIcon, Folder, Film } from 'lucide-react';
+import { FileIcon, Image as ImageIcon, Folder, Film, Check } from 'lucide-react';
 
 export type ViewMode = 'grid' | 'gallery' | 'list';
 
@@ -9,22 +9,18 @@ interface FileGridItemProps {
   item: GridItem;
   isSelected: boolean;
   selectionOrderIndex: number | null; // 1-based order index, null if not selected
+  totalSelected: number;
   viewMode: ViewMode;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onItemHover?: (item: GridItem, e: React.MouseEvent) => void;
+  onItemLeave?: () => void;
 }
 
-const formatBytes = (bytes: number, decimals = 2) => {
-    if (!+bytes) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-};
 
-function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick, onDoubleClick, onContextMenu }: FileGridItemProps) {
+
+function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, viewMode, onClick, onDoubleClick, onContextMenu, onItemHover, onItemLeave }: FileGridItemProps) {
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
   
@@ -63,28 +59,11 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
     ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.5)] z-10' 
     : 'border-dark-700 bg-dark-800 hover:border-dark-600 hover:bg-dark-700 z-0';
 
-  const tooltipHTML = itemName !== '..' && (
-    <div className="absolute z-[100] top-[30%] left-[80%] w-max max-w-[280px] p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 xl:group-hover:opacity-100 transition-opacity duration-200 pointer-events-none delay-500 hidden xl:block">
-      <p className="text-sm font-bold text-gray-100 truncate">{itemName}</p>
-      {isFile ? (
-        <div className="mt-2 flex flex-col gap-1">
-          <p className="text-xs text-blue-400 font-mono tracking-wider">.{itemName.split('.').pop()?.toUpperCase() || 'FILE'}</p>
-          <div className="flex items-center gap-4 text-xs text-gray-400">
-             <span>{formatBytes(item.pair.size || 0)}</span>
-             <span>{item.pair.lastModified ? new Date(item.pair.lastModified).toLocaleDateString() : 'N/A'}</span>
-          </div>
-        </div>
-      ) : (
-        <p className="text-xs text-gray-500 mt-1">Directory / Folder</p>
-      )}
-    </div>
-  );
-
   const SelectionBadge = () => {
     if (selectionOrderIndex === null) return null;
     return (
        <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-blue-500 text-white shadow-lg border border-white flex items-center justify-center font-bold text-xs pointer-events-none z-20">
-          {selectionOrderIndex}
+          {totalSelected === 1 ? <Check size={14} strokeWidth={3} /> : selectionOrderIndex}
        </div>
     );
   };
@@ -95,6 +74,8 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
         onClick={handleSingleClick}
         onDoubleClick={handleDoubleClickCore}
         onContextMenu={onContextMenu}
+        onMouseEnter={onItemHover && itemName !== '..' ? (e) => onItemHover(item, e) : undefined}
+        onMouseLeave={onItemLeave}
         className={`group cursor-pointer border-b last:border-b-0 flex items-center px-4 py-2 transition-all relative select-none ${selectedClass}`}
       >
         <div className="w-8 h-8 flex items-center justify-center shrink-0 mr-3 relative">
@@ -112,7 +93,6 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
             {!isFile ? 'Folder' : pair!.sidecarHandle ? 'Paired File' : 'Main file'}
           </p>
         </div>
-        {tooltipHTML}
       </div>
     );
   }
@@ -122,6 +102,8 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
       onClick={handleSingleClick}
       onDoubleClick={handleDoubleClickCore}
       onContextMenu={onContextMenu}
+      onMouseEnter={onItemHover && itemName !== '..' ? (e) => onItemHover(item, e) : undefined}
+      onMouseLeave={onItemLeave}
       className={`group cursor-pointer rounded-xl border flex flex-col overflow-visible transition-all duration-200 h-full select-none relative hover:z-[60] ${selectedClass}`}
     >
       <SelectionBadge />
@@ -144,7 +126,6 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
           {!isFile ? 'Folder' : pair!.sidecarHandle ? 'Paired File' : 'Main file'}
         </p>
       </div>
-      {tooltipHTML}
     </div>
   );
 }
@@ -161,9 +142,11 @@ interface FileGridProps {
   onItemClick: (id: string, e: React.MouseEvent) => void;
   onItemDoubleClick: (item: GridItem, e: React.MouseEvent) => void;
   onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
+  onItemHover?: (item: GridItem, e: React.MouseEvent) => void;
+  onItemLeave?: () => void;
 }
 
-export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onItemDoubleClick, onItemContextMenu }: FileGridProps) {
+export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onItemDoubleClick, onItemContextMenu, onItemHover, onItemLeave }: FileGridProps) {
   if (groups.length === 0 || (groups.length === 1 && groups[0].items.length === 0)) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
@@ -181,6 +164,8 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onIt
   };
 
   const renderItems = (items: GridItem[]) => {
+    const totalSelected = selectedIdsArray.filter(Boolean).length;
+
     if (viewMode === 'list') {
       return (
         <div className="flex flex-col border border-dark-700 rounded-xl bg-dark-800 w-full mb-6 max-w-5xl">
@@ -191,10 +176,13 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onIt
                 key={id} item={item} 
                 isSelected={getSelectionOrderIndex(id) !== null} 
                 selectionOrderIndex={getSelectionOrderIndex(id)}
+                totalSelected={totalSelected}
                 viewMode={viewMode}
                 onClick={(e) => onItemClick(id, e)} 
                 onDoubleClick={(e) => onItemDoubleClick(item, e)}
                 onContextMenu={(e) => onItemContextMenu(item, e)}
+                onItemHover={onItemHover}
+                onItemLeave={onItemLeave}
               />
             );
           })}
@@ -215,10 +203,13 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onIt
               key={id} item={item} 
               isSelected={getSelectionOrderIndex(id) !== null} 
               selectionOrderIndex={getSelectionOrderIndex(id)}
+              totalSelected={totalSelected}
               viewMode={viewMode}
               onClick={(e) => onItemClick(id, e)} 
               onDoubleClick={(e) => onItemDoubleClick(item, e)}
               onContextMenu={(e) => onItemContextMenu(item, e)}
+              onItemHover={onItemHover}
+              onItemLeave={onItemLeave}
             />
           );
         })}

@@ -118,14 +118,14 @@ export function InspectorPanel({
      return (
        <div className="flex flex-col h-full overflow-hidden">
           <div className="flex items-center p-4 border-b border-dark-700 shrink-0">
-             <span className="text-sm font-semibold text-yellow-400">IndexedDB Bookmarks</span>
+             <span className="text-sm font-semibold text-yellow-400">Bookmarks</span>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+           <div className="flex-1 overflow-y-auto p-2 space-y-2">
              {bookmarks.length === 0 ? (
                  <div className="flex flex-col items-center justify-center text-gray-500 text-center h-full opacity-50">
                     <Bookmark size={48} className="mb-4" />
                     <p className="text-sm">No bookmarks saved.</p>
-                    <p className="text-xs mt-2">Right click folders to bookmark them.</p>
+                    <p className="text-xs mt-2 text-yellow-500/80 font-medium">Right-Click to bookmark an item</p>
                  </div>
              ) : (
                 bookmarks.map(bm => (

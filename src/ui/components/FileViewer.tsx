@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import ReactMarkdown from 'react-markdown';
 import { GridItem } from '../../core/models/FilePair';
-import { FileIcon } from 'lucide-react';
+import { FileIcon, ZoomIn, ZoomOut, Maximize, MoveHorizontal, Search } from 'lucide-react';
+import { VideoEditor } from './VideoEditor';
 
 function JsonNode({ nodeKey, value, isLast }: { nodeKey?: string, value: any, isLast: boolean }) {
    const [expanded, setExpanded] = useState(true);
@@ -98,12 +99,49 @@ function MediaViewer({ file, type }: { file: File, type: 'image' | 'video' | 'pd
 
     if (!url) return null;
 
+    if (type === 'image') {
+        return <ImageViewer url={url} />;
+    }
+
+    if (type === 'video') {
+        return <VideoEditor file={file} originalName={(file as any).name || 'video'} onSaveNewFile={(file as any).onSaveNewFile} />;
+    }
+
     return (
         <div className="w-full h-full flex items-center justify-center overflow-hidden p-2">
-            {type === 'image' && <img src={url} className="w-full h-full object-contain filter drop-shadow-2xl rounded" />}
-            {type === 'video' && <video src={url} controls autoPlay className="w-full h-full object-contain rounded shadow-2xl outline-none" />}
             {type === 'pdf' && <object data={url} type="application/pdf" className="w-full h-full rounded shadow-2xl bg-white"></object>}
         </div>
+    );
+}
+
+function ImageViewer({ url }: { url: string }) {
+    const [zoomParams, setZoomParams] = useState({ scale: 1, fitMode: 'contain' as 'contain' | 'width' | 'original' });
+
+    const btnClass = "p-2 bg-dark-700/50 hover:bg-dark-600 text-gray-400 hover:text-white rounded transition-colors";
+
+    return (
+       <div className="w-full h-full relative group bg-black">
+           <div className="absolute bottom-6 right-6 bg-dark-800/90 backdrop-blur-md border border-dark-600 shadow-2xl rounded-xl p-1.5 flex items-center gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+               <button onClick={() => setZoomParams({ scale: 1, fitMode: 'contain' })} className={btnClass} title="Fit to Screen"><Maximize size={16}/></button>
+               <button onClick={() => setZoomParams({ scale: 1, fitMode: 'width' })} className={btnClass} title="Fit to Width"><MoveHorizontal size={16}/></button>
+               <button onClick={() => setZoomParams({ scale: 1, fitMode: 'original' })} className={btnClass} title="1:1 Original Size"><Search size={16}/></button>
+               <div className="w-px h-6 bg-dark-600 my-auto mx-1" />
+               <button onClick={() => setZoomParams(p => ({ fitMode: 'original', scale: p.scale * 1.25 }))} className={btnClass} title="Zoom In"><ZoomIn size={16}/></button>
+               <button onClick={() => setZoomParams(p => ({ fitMode: 'original', scale: p.scale / 1.25 }))} className={btnClass} title="Zoom Out"><ZoomOut size={16}/></button>
+           </div>
+           
+           <div className={`w-full h-full ${zoomParams.fitMode === 'contain' ? 'flex items-center justify-center overflow-hidden p-2' : 'overflow-auto'}`}>
+               <img 
+                  src={url} 
+                  className={`
+                     ${zoomParams.fitMode === 'contain' ? 'w-full h-full object-contain filter drop-shadow-2xl rounded' : ''}
+                     ${zoomParams.fitMode === 'width' ? 'w-full h-auto block' : ''}
+                     ${zoomParams.fitMode === 'original' ? 'origin-top-left' : ''}
+                  `} 
+                  style={zoomParams.fitMode === 'original' ? { transform: `scale(${zoomParams.scale})`, maxWidth: 'none' } : undefined}
+               />
+           </div>
+       </div>
     );
 }
 
@@ -138,7 +176,7 @@ function HtmlViewer({ text }: { text: string | null, item: GridItem }) {
     );
 }
 
-export function FileViewer({ item, forceText }: { item: GridItem, forceText?: boolean }) {
+export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem, forceText?: boolean, onSaveNewFile?: (blob:Blob, name:string)=>Promise<void> }) {
    const [fileObj, setFileObj] = useState<File | null>(null);
    const [textData, setTextData] = useState<string | null>(null);
    const [error, setError] = useState(false);
@@ -199,7 +237,10 @@ export function FileViewer({ item, forceText }: { item: GridItem, forceText?: bo
    const isHtml = ['html', 'htm'].includes(ext);
 
    if (isImage) return <MediaViewer file={fileObj} type="image" />;
-   if (isVideo) return <MediaViewer file={fileObj} type="video" />;
+   if (isVideo) {
+       (fileObj as any).onSaveNewFile = onSaveNewFile;
+       return <MediaViewer file={fileObj} type="video" />;
+   }
    if (isPDF) return <MediaViewer file={fileObj} type="pdf" />;
    if (isZip) return <ZipViewer file={fileObj} />;
    if (isCode) return <CodeViewer text={textData} item={item} />;
