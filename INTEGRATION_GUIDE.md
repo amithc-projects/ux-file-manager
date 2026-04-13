@@ -65,12 +65,17 @@ To control the application:
 1. Target the DOM Node: `const manager = document.querySelector('sidekick-manager');`
 2. Since the class prototype natively extends `HTMLElement`, any exposed methods directly patched onto the `class SidekickManager` definition in your Source Code become immediately globally callable by external scripts.
 
-**Example (Programmatic Deep Linking):**
-Once the user has evaluated a Root Folder, your Host Extension can instantly skip into nested sub-directories natively bypassing the UI.
+**Example (Programmatic Deep Linking & Configuration):**
+Once the user has evaluated a Root Folder, your Host Extension can instantly skip into nested sub-directories natively bypassing the UI. You can also pass an optional payload to force specific File selections and Visual Modes instantly!
 ```javascript
 // Target the embedded Web Component
 const manager = document.querySelector('sidekick-manager');
 
-// Plunge recursively into the active workspace natively from Chrome Extension Logic!
-manager.navigate('www.bbc.co.uk/assets/images'); 
+// Plunge recursively into the active workspace AND forcefully select a file in Gallery mode!
+manager.navigate('www.bbc.co.uk/assets/images', {
+    filename: 'hero-banner.webp', // The file to automatically highlight once loaded
+    viewMode: 'gallery',          // 'grid' | 'list' | 'gallery'
+    sortBy: 'date',               // 'name' | 'type' | 'date' | 'size'
+    sortAsc: false                // true (ascending) | false (descending)
+}); 
 ```

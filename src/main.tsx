@@ -7,9 +7,9 @@ class SidekickManager extends HTMLElement {
   private root: ReactDOM.Root | null = null;
   private appRef = React.createRef<any>();
 
-  navigate(path: string) {
+  navigate(path: string, options?: any) {
     if (this.appRef.current) {
-        this.appRef.current.navigate(path);
+        this.appRef.current.navigate(path, options);
     }
   }
 

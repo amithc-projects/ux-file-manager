@@ -24,8 +24,15 @@ export interface AppProps {
   onTelemetry?: (event: string, payload: any) => void;
 }
 
+export interface NavigateOptions {
+  filename?: string;
+  sortBy?: SortBy;
+  sortAsc?: boolean;
+  viewMode?: ViewMode;
+}
+
 export interface AppRef {
-  navigate: (pathStr: string) => Promise<void>;
+  navigate: (pathStr: string, options?: NavigateOptions) => Promise<void>;
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
@@ -55,13 +62,14 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   // Advanced Selectors
   const [leftCompareItem, setLeftCompareItem] = useState<GridItem | null>(null);
   const [compareActive, setCompareActive] = useState<{ left: GridItem, right: GridItem } | null>(null);
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   
   // Collection & Clipboard
   const [clipboardItems, setClipboardItems] = useState<GridItem[]>([]);
   const [, _setClipboardAction] = useState<ActionType>(null);
   const [collectionBasket, setCollectionBasket] = useState<GridItem[]>([]);
 
-  const { selectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
+  const { selectedIdsArray, setSelectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
 
   useEffect(() => {
      if (onTelemetry) onTelemetry('sidekick:ready', { version: '1.0' });
@@ -97,6 +105,17 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
       ]);
       clearSelection();
   }, [clearSelection]);
+
+  useEffect(() => {
+     if (pendingSelection && items.length > 0) {
+        const target = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === pendingSelection);
+        if (target) {
+           const finalId = target.type === 'file' ? target.pair.id : target.name;
+           setSelectedIdsArray([finalId]);
+           setPendingSelection(null);
+        }
+     }
+  }, [items, pendingSelection, setSelectedIdsArray]);
 
   const refreshCurrentDirectory = useCallback(async () => {
     if (currentDir) {
@@ -188,12 +207,28 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   pathStackRef.current = pathStack; // Synchronous bind during render pipeline before effects!
 
   React.useImperativeHandle(ref, () => ({
-      navigate: async (pathStr: string) => {
+      navigate: async (pathStr: string, options?: NavigateOptions) => {
+          if (options?.sortBy) setSortBy(options.sortBy);
+          if (options?.sortAsc !== undefined) setSortAsc(options.sortAsc);
+          if (options?.viewMode) {
+              setViewMode(options.viewMode as string === 'filmstrip' ? 'gallery' : options.viewMode);
+          }
+
+          // Allow modifying pure UI params if root isn't even active
           if (pathStackRef.current.length === 0) {
-             if (onTelemetry) onTelemetry('sidekick:error', { code: 'NAV_DENIED', message: 'Cannot navigate deep path before Root Folder is authorized.' });
+             if (pathStr && onTelemetry) {
+                 onTelemetry('sidekick:error', { code: 'NAV_DENIED', message: 'Cannot navigate deep path before Root Folder is authorized.' });
+             }
              return;
           }
-          await handleCreatePath(pathStr);
+
+          if (pathStr) {
+             await handleCreatePath(pathStr);
+          }
+
+          if (options?.filename) {
+             setPendingSelection(options.filename);
+          }
       },
       setRoot: async (handle: FileSystemDirectoryHandle) => {
           await scanAndSetDirectory(handle, true);
