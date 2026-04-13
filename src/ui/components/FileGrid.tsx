@@ -122,7 +122,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, viewMode, onClick
       onClick={handleSingleClick}
       onDoubleClick={handleDoubleClickCore}
       onContextMenu={onContextMenu}
-      className={`group cursor-pointer rounded-xl border flex flex-col overflow-visible transition-all duration-200 h-full select-none relative ${selectedClass}`}
+      className={`group cursor-pointer rounded-xl border flex flex-col overflow-visible transition-all duration-200 h-full select-none relative hover:z-[60] ${selectedClass}`}
     >
       <SelectionBadge />
       <div className="w-full py-[50%] flex items-center justify-center bg-dark-900/50 relative shrink-0 rounded-t-xl overflow-hidden pointer-events-none">

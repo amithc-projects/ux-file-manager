@@ -4,6 +4,7 @@ import { GridItem, FilePair, WorkspaceFolder } from '../../core/models/FilePair'
 import { ScannerService } from '../../core/services/ScannerService';
 import { StorageService } from '../../core/services/StorageService';
 import { FileGrid, GroupedItems, ViewMode } from '../../ui/components/FileGrid';
+import { GalleryView } from '../../ui/components/GalleryView';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
 import { CompareModal } from '../../ui/components/CompareModal';
@@ -242,6 +243,27 @@ function App() {
       }
   };
 
+  const handleCopyContents = async (item: GridItem) => {
+     if (item.type !== 'file') return;
+     try {
+       const file = await item.pair.mainHandle.getFile();
+       const ext = item.pair.id.split('.').pop()?.toLowerCase();
+       const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext || '');
+       if (isImage) {
+           const buffer = await file.arrayBuffer();
+           const blob = new Blob([buffer], { type: file.type || 'image/png' });
+           let type = blob.type;
+           if (!type.includes('image/')) type = 'image/png';
+           if (type === 'image/jpeg') type = 'image/png'; // ClipboardItem mandates PNG heavily for images on raw copy in Chrome/Safari securely
+           const cbItem = new ClipboardItem({ [type]: blob });
+           await navigator.clipboard.write([cbItem]);
+       } else {
+           const text = await file.text();
+           await navigator.clipboard.writeText(text);
+       }
+     } catch (e) { console.error('Failed to copy', e); }
+  };
+
   const selectedItem = items.find(i => {
      const id = i.type === 'file' ? i.pair.id : i.name;
      return id === selectedIdsArray.find(x => x !== null);
@@ -410,9 +432,34 @@ function App() {
               <FolderOpen size={64} className="mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
               <h2 className="text-2xl font-bold text-white mb-2">Welcome to Sidekick</h2>
               <button onClick={handleOpenRootFolder} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg font-medium text-white transition-all transform hover:scale-105 mb-12 mt-4">Select Local Directory</button>
+              
+              {recentWorkspaces.length > 0 && (
+                 <div className="w-full flex flex-col items-center border-t border-dark-700 pt-8 animate-in fade-in">
+                    <h3 className="text-sm tracking-wider text-gray-500 font-bold mb-4 flex items-center gap-2"><History size={16} /> Continue where you left off</h3>
+                    <div className="flex flex-wrap gap-3 justify-center">
+                       {recentWorkspaces.slice(0, 5).map(ws => (
+                          <button key={ws.id} onClick={() => handleResumeWorkspace(ws)} className="flex items-center gap-2 px-4 py-2 bg-dark-800 border border-dark-600 hover:border-blue-500 rounded-lg text-sm text-gray-300 transition-colors shadow-sm">
+                             <FolderOpen size={14} className="text-blue-400" />{ws.name}
+                          </button>
+                       ))}
+                    </div>
+                 </div>
+              )}
             </div>
           ) : processedGroups.reduce((acc, curr) => acc + curr.items.length, 0) === 0 ? (
              <div className="flex-1 flex flex-col items-center justify-center text-gray-500"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
+          ) : viewMode === 'gallery' ? (
+            <GalleryView
+              groups={processedGroups}
+              selectedIdsArray={selectedIdsArray}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onItemContextMenu={(item, e) => {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 setContextMenu({ x: e.pageX, y: e.pageY, item });
+              }}
+            />
           ) : (
             <FileGrid 
               groups={processedGroups}
@@ -479,6 +526,9 @@ function App() {
                </button>
             )}
             <button onClick={() => { setCollectionBasket(prev => { if (!prev.find(i => i === contextMenu.item)) return [...prev, contextMenu.item]; return prev; }); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><BoxSelect size={14}/> Add to Collection</button>
+            {contextMenu.item.type === 'file' && (
+               <button onClick={() => { handleCopyContents(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><ClipboardPaste size={14}/> Copy File Contents</button>
+            )}
             <button onClick={() => { setLeftCompareItem(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><CompareIcon size={14}/> Set as L Compare</button>
             <button onClick={() => { if (leftCompareItem) setCompareActive({ left: leftCompareItem, right: contextMenu.item }); closeContext(); }} disabled={!leftCompareItem} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left disabled:opacity-50 disabled:hover:bg-transparent"><CompareIcon size={14}/> Compare with L</button>
          </div>
