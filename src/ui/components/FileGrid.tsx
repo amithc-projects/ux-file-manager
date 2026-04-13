@@ -88,10 +88,15 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
             <span className="bg-indigo-500/80 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold text-white shrink-0">Meta</span>
           )}
         </div>
-        <div className="w-32 shrink-0 text-right pointer-events-none">
-          <p className="text-xs text-gray-500">
-            {!isFile ? 'Folder' : pair!.sidecarHandle ? 'Paired File' : 'Main file'}
-          </p>
+        <div className="flex items-center justify-end gap-6 shrink-0 text-right pointer-events-none pr-2">
+           {isFile ? (
+              <>
+                 <p className="text-xs text-gray-400 w-24 text-right">{pair!.size ? `${(pair!.size / 1024).toFixed(1)} KB` : ''}</p>
+                 <p className="text-xs text-gray-500 w-40 text-right">{pair!.lastModified ? new Date(pair!.lastModified).toLocaleString() : ''}</p>
+              </>
+           ) : (
+              <p className="text-xs text-gray-500 w-40 text-right">Folder</p>
+           )}
         </div>
       </div>
     );
@@ -122,9 +127,12 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         <p className="text-sm font-medium truncate text-gray-200" title={itemName}>
           {itemName}
         </p>
-        <p className="text-xs text-gray-500 mt-1">
-          {!isFile ? 'Folder' : pair!.sidecarHandle ? 'Paired File' : 'Main file'}
-        </p>
+        <div className="flex items-center justify-between mt-1">
+           <p className="text-xs text-gray-500">
+             {!isFile ? 'Folder' : pair!.size ? `${(pair!.size / (1024 * 1024) >= 1) ? (pair!.size / (1024 * 1024)).toFixed(1) + ' MB' : (pair!.size / 1024).toFixed(1) + ' KB'}` : 'Unknown Size'}
+           </p>
+           {isFile && pair!.sidecarHandle && <span className="text-[10px] text-indigo-400 uppercase font-bold">Paired</span>}
+        </div>
       </div>
     </div>
   );

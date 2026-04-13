@@ -7,7 +7,7 @@ interface PreviewModalProps {
   item: GridItem;
   forceText?: boolean;
   onClose: () => void;
-  onSaveNewFile?: (blob: Blob, name: string) => Promise<void>;
+  onSaveNewFile?: (blob: Blob, name: string, options?: {overwriteOriginal?: boolean}) => Promise<void>;
 }
 
 export function PreviewModal({ item, forceText, onClose, onSaveNewFile }: PreviewModalProps) {

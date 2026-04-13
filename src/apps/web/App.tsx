@@ -722,16 +722,23 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
          item={previewItem.item} 
          forceText={previewItem.forceText} 
          onClose={() => setPreviewItem(null)} 
-         onSaveNewFile={async (blob, name) => {
+         onSaveNewFile={async (blob, name, options) => {
             const targetDir = pathStack[pathStack.length - 1];
             if (!targetDir) return;
             setLoading(true);
             try {
-               const uniqueId = await generateUniqueName(targetDir, name);
-               const targetFileHandle = await targetDir.getFileHandle(uniqueId, { create: true });
-               const writable = await (targetFileHandle as any).createWritable();
-               await writable.write(blob);
-               await writable.close();
+               if (options?.overwriteOriginal) {
+                  const targetFileHandle = await targetDir.getFileHandle(name, { create: false });
+                  const writable = await (targetFileHandle as any).createWritable();
+                  await writable.write(blob);
+                  await writable.close();
+               } else {
+                  const uniqueId = await generateUniqueName(targetDir, name);
+                  const targetFileHandle = await targetDir.getFileHandle(uniqueId, { create: true });
+                  const writable = await (targetFileHandle as any).createWritable();
+                  await writable.write(blob);
+                  await writable.close();
+               }
             } finally {
                setLoading(false);
                await refreshCurrentDirectory();
@@ -755,7 +762,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
                    <p className="text-xs text-blue-400 font-mono tracking-wider">.{globalTooltip.item.pair.id.split('.').pop()?.toUpperCase() || 'FILE'}</p>
                    <div className="flex items-center gap-4 text-xs text-gray-400">
                       <span>{globalTooltip.item.pair.size ? `${(globalTooltip.item.pair.size / 1024).toFixed(2)} KB` : '0 KB'}</span>
-                      <span>{globalTooltip.item.pair.lastModified ? new Date(globalTooltip.item.pair.lastModified).toLocaleDateString() : 'N/A'}</span>
+                      <span>{globalTooltip.item.pair.lastModified ? new Date(globalTooltip.item.pair.lastModified).toLocaleString() : 'N/A'}</span>
                    </div>
                 </div>
              ) : <p className="text-xs text-gray-500 mt-1">Directory / Folder</p>}

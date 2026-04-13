@@ -176,7 +176,7 @@ function HtmlViewer({ text }: { text: string | null, item: GridItem }) {
     );
 }
 
-export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem, forceText?: boolean, onSaveNewFile?: (blob:Blob, name:string)=>Promise<void> }) {
+export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem, forceText?: boolean, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void> }) {
    const [fileObj, setFileObj] = useState<File | null>(null);
    const [textData, setTextData] = useState<string | null>(null);
    const [error, setError] = useState(false);
