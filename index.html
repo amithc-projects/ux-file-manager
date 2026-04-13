@@ -6,7 +6,18 @@
     <title>Sidekick File Manager</title>
   </head>
   <body>
-    <div id="root"></div>
+    <sidekick-manager></sidekick-manager>
+
+    <!-- Host Telemetry Test Script -->
+    <script>
+       const manager = document.querySelector('sidekick-manager');
+       manager.addEventListener('sidekick:ready', (e) => console.log('✅ App Booted:', e.detail));
+       manager.addEventListener('sidekick:selection', (e) => console.log('🎯 Items Selected:', e.detail));
+       manager.addEventListener('sidekick:action', (e) => console.log('⚡ Action Performed:', e.detail));
+       manager.addEventListener('sidekick:error', (e) => console.error('🚫 System Block:', e.detail));
+       manager.addEventListener('sidekick:workspace', (e) => console.log('📁 Root Target Swapped:', e.detail));
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

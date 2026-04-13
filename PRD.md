@@ -1,35 +1,45 @@
 # Product Requirements Document (PRD): Sidekick File Manager
 
 ## 1. Executive Summary
-**Sidekick** is a local-first, browser-native file management interface. It leverages the File System Access API to provide a professional-grade file browsing experience (similar to macOS Finder or Windows Explorer) while introducing specialized logic for **Silent Sidecar Pairing**.
+**Sidekick** is a local-first, browser-native file management interface engineered to execute professional-grade file operations directly within the client environment. By bypassing traditional full-stack backends and leveraging the **File System Access API**, Sidekick achieves extreme performance and complete data privacy, mutating files locally on the hard drive entirely through the browser sandbox.
 
-## 2. Target Environments
-1.  **Browser-Based PWA:** A standalone web application for processing local project folders.
-2.  **Chrome Extension:** A sidepanel-based utility that allows users to manage files while browsing other sites.
+## 2. Deployment Architectures
+1. **Desktop Web App (Vite/React):** A standard Localhost implementation supporting fullscreen multi-panel layouts perfect for extensive UI layouts and split-pane previews.
+2. **Chrome Extension (Manifest V3):** Configured specifically as a Chrome **Side Panel**. The extension injects the exact same interface directly alongside the user's primary browsing context, allowing true drag-and-drop file modifications concurrently with standard web reading.
+3. **Web Component Integration:** Architecturally designed allowing the top-level container to compile into an internal Shadow DOM, behaving as a distributable native HTML `<sidekick-manager>` tag.
 
-## 3. Functional Requirements
+## 3. Core Functional Pillars
 
-### 3.1 File System Interaction
-- **FR-01: Directory Picking:** Users must be able to select a local folder via `window.showDirectoryPicker()`.
-- **FR-02: Persistent Access:** (Extension Only) Use `indexedDB` to store file handles so permissions can be re-requested or remembered across sessions.
-- **FR-03: CRUD Operations:** Support for Rename, Delete, and Copy/Move.
-- **FR-04: Atomic Pairing:** If a file is deleted, its associated sidecar MUST be deleted simultaneously.
+### 3.1 Unrestricted File System Access
+- **Native Routing:** Reads massive data systems hierarchically generating live nested interfaces via `window.showDirectoryPicker`.
+- **System Memory:** Mounts `IndexedDB` caching mechanics securing Folder Directory Handles persistently so that restarting the app or returning generates a highly aesthetic "Recent Workspaces" prompt, averting heavy authorization clicks upon return.
+- **Recursive Generation:** Allow users to write full paths natively (e.g., `folder/sub/sub2`) dynamically cascading new Directory Handles internally into existence via the UI.
 
-### 3.2 Sidecar Logic (The "Silent Partner")
-- **SR-01: Pattern Matching:** Automatically pair `[filename].[ext]` with `.[prefix][filename].[ext]` (e.g., `image.jpg` + `.meta_image.jpg`).
-- **SR-02: Hidden by Default:** Sidecars should be filtered out of the main UI view unless a "Show Hidden Files" toggle is active.
-- **SR-03: Metadata Extraction:** Read the content of sidecars (JSON or Text) to populate the UI "Inspector" panel.
+### 3.2 Viewports & Universal Renderers
+- **Abstract Previews:** Employs an ultra-modern `FileViewer` rendering interface that structurally breaks down arbitrary File Extensions out of raw array streams without requiring backend processing:
+  - Code Viewer: Casts `JS`, `TS`, `CSS`, and `TXT` neatly into syntax-blocked outputs.
+  - JSON Viewer: Projects deep nested sidecar layers natively in a custom UI collapsing tree.
+  - Markdown Viewers: Evaluates structural code mirroring heavily optimized dark-mode standard styling logic.
+  - Media & PDFs: Native visual mounts intercept object URLs seamlessly.
+  - HTML Sandbox: Uses precise `<iframe srcDoc>` boundaries to natively project source markup alongside evaluated sandboxed CSS states simultaneously.
+  - ZIP Explorers: Mounts JSZip streams visually iterating archive arrays directly.
 
-### 3.3 Search & Discovery
-- **DR-01: Indexing:** On folder load, the app must parse all sidecars and index their text content.
-- **DR-02: Hybrid Search:** Search queries must return results matching the filename OR the content found inside the sidecar.
-- **DR-03: Thumbnails:** Generate lazy-loaded previews using `URL.createObjectURL()`.
+### 3.3 Silent Metadata Engine (Sidecars)
+- **Pairing Engine:** Fuses primary assets (`adam-sandler.jpg`) to native localized JSON tracking files automatically. 
+- **Atomic Migrations:** Deleting, moving, or dragging primary structural components automatically fires batch operations handling connected sub-meta documents simultaneously so that files are virtually unbreakable.
 
-### 3.4 Action Delegate System
-- **AR-01: Parent Callback:** The UI component must emit events containing an array of `FileSystemHandle` pairs.
-- **AR-02: Environment-Specific Actions:** - *Extension:* "Generate ZIP", "Export to Cloud".
-    - *Web App:* "Batch Rename", "Metadata Edit".
+### 3.4 Advanced UX Matrix
+- **Selection Sequences:** Replicates traditional OS paradigms intercepting `Shift`, `Alt`, and `Cmd/Ctrl` explicitly. Single clicks bypass arrays mapping individual resets elegantly.
+- **Structural Folder Comparison:** Implements a localized Diff mechanism tracking overlapping hierarchical matrices to rapidly compare structural offsets between separate project directories.
+- **Force Raw Text Evaluations:** Configured right-click Context hooks allowing OS level integrations like "Copy File Contents" (copying arbitrary chunks directly to system clipboards) and "View As Text," invoking extreme raw string parsing bounds capped at 500KB thresholds to prevent crash states.
 
 ## 4. Technical Constraints
-- **Browser Compatibility:** Chromium-based browsers only (v86+).
-- **Memory Management:** For "hundreds of files," memory usage must be optimized by revoking Object URLs and using virtualized lists.
+- **Browser Compatibility:** Chrome, Edge, and Opera strictly. Chromium-specific environments are required as Apple’s Safari WebKit intrinsically blocks external File System modifications.
+- **Component Stack:** Structured cleanly over React 18 & TailwindCSS.
+- **Performance Limits:** Memory strictly clamped utilizing precise `.text()` slicing thresholds and tight `revokeObjectURL` triggers guaranteeing aggressive visual rendering speed.
+
+## 5. Future Roadmap
+Looking ahead, the following high-priority milestones are scoped to further expand Sidekick's deployability and embeddability across enterprise architectures:
+
+1. **Standalone Web Component Bundling:** Formally detach the top-level React render sequence and wrap the entire application state into a single `.web` Custom Element (`<sidekick-manager>`) utilizing Shadow DOM logic to achieve impenetrable zero-leak CSS and robust agnosticism.
+2. **Cross-Boundary Message Protocols:** Build and demonstrate event-driven architectures bridging the Chrome Extension wrapper layers with the internal Web Component directly. This will allow bi-directional telemetry (e.g., dispatching events outwards to let the Extension or any remote Host Web App securely know exactly which files are actively selected, moved, or deleted inside the file manager).

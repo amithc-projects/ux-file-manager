@@ -20,7 +20,16 @@ type ActionType = 'copy' | 'cut' | null;
 
 interface ContextMenuState { x: number; y: number; item: GridItem; }
 
-function App() {
+export interface AppProps {
+  onTelemetry?: (event: string, payload: any) => void;
+}
+
+export interface AppRef {
+  navigate: (pathStr: string) => Promise<void>;
+  setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
+}
+
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,9 +64,23 @@ function App() {
   const { selectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
 
   useEffect(() => {
+     if (onTelemetry) onTelemetry('sidekick:ready', { version: '1.0' });
      StorageService.getWorkspaces().then(setRecentWorkspaces);
      StorageService.getBookmarks().then(setBookmarks);
   }, []);
+
+  useEffect(() => {
+     if (onTelemetry) {
+        const targets = items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name));
+        onTelemetry('sidekick:selection', { items: targets.map(t => t.type === 'file' ? t.pair.id : t.name) });
+     }
+  }, [selectedIds, items, onTelemetry]);
+
+  useEffect(() => {
+     if (onTelemetry && pathStack.length > 0) {
+        onTelemetry('sidekick:workspace', { folderName: pathStack[pathStack.length - 1].name, pathLength: pathStack.length });
+     }
+  }, [pathStack, onTelemetry]);
 
   const closeContext = () => setContextMenu(null);
   const currentDir = pathStack.length > 0 ? pathStack[pathStack.length - 1] : null;
@@ -119,7 +142,9 @@ function App() {
     try {
       const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
       await scanAndSetDirectory(handle, true);
-    } catch (err) {}
+    } catch (err: any) {
+      if (onTelemetry) onTelemetry('sidekick:error', { code: 'FSA_DENIED', message: err?.message || 'Access Denied' });
+    }
   };
 
   const handleResumeWorkspace = async (ws: WorkspaceFolder) => {
@@ -159,17 +184,37 @@ function App() {
       });
   };
 
+  const pathStackRef = React.useRef(pathStack);
+  pathStackRef.current = pathStack; // Synchronous bind during render pipeline before effects!
+
+  React.useImperativeHandle(ref, () => ({
+      navigate: async (pathStr: string) => {
+          if (pathStackRef.current.length === 0) {
+             if (onTelemetry) onTelemetry('sidekick:error', { code: 'NAV_DENIED', message: 'Cannot navigate deep path before Root Folder is authorized.' });
+             return;
+          }
+          await handleCreatePath(pathStr);
+      },
+      setRoot: async (handle: FileSystemDirectoryHandle) => {
+          await scanAndSetDirectory(handle, true);
+      }
+  }));
+
   const handleCreatePath = async (pathStr: string) => {
      setPathPromptOpen(false);
-     if (!currentDir || !pathStr) return;
+     const stack = pathStackRef.current;
+     if (stack.length === 0 || !pathStr) return;
      try {
-         setLoading(true);
-         const segments = pathStr.split('/').filter(Boolean);
-         let targetHandle = currentDir;
-         for (const segment of segments) {
-             targetHandle = await targetHandle.getDirectoryHandle(segment, { create: true });
-         }
-         await refreshCurrentDirectory();
+       setLoading(true);
+       const chunks = pathStr.split('/').filter(Boolean);
+       let curr = stack[stack.length - 1];
+       const newStack: FileSystemDirectoryHandle[] = [];
+       for (const chunk of chunks) {
+          curr = await curr.getDirectoryHandle(chunk, { create: true });
+          newStack.push(curr);
+       }
+       setPathStack([...stack, ...newStack]);
+       await scanAndSetDirectory(curr, false);
      } catch (e) {
          console.error(e);
      } finally {
@@ -189,8 +234,11 @@ function App() {
            await currentDir.removeEntry(item.name, { recursive: true });
         }
       }
+      if (onTelemetry) onTelemetry('sidekick:action', { action: 'delete', targetCount: targetedItems.length });
       await refreshCurrentDirectory();
-    } catch (error) { console.error(error); } finally { setLoading(false); }
+    } catch (error: any) { 
+        if (onTelemetry) onTelemetry('sidekick:error', { code: 'DELETE_ABORTED', message: error?.message });
+    } finally { setLoading(false); }
   };
 
   const handleCollectionBatch = async (action: string) => {
@@ -261,7 +309,10 @@ function App() {
            const text = await file.text();
            await navigator.clipboard.writeText(text);
        }
-     } catch (e) { console.error('Failed to copy', e); }
+       if (onTelemetry) onTelemetry('sidekick:action', { action: 'copy-contents', target: item.pair.id });
+     } catch (e: any) {
+        if (onTelemetry) onTelemetry('sidekick:error', { code: 'COPY_FAILED', message: e?.message });
+     }
   };
 
   const selectedItem = items.find(i => {
@@ -548,6 +599,6 @@ function App() {
       )}
     </div>
   );
-}
+});
 
 export default App;
