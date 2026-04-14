@@ -179,6 +179,16 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
         setActiveClipId(newClip2.id);
     };
 
+    const handleDeleteClip = () => {
+        if (!activeClip) return;
+        setClips(prev => {
+            const next = prev.filter(c => c.id !== activeClip.id);
+            if (next.length > 0) setActiveClipId(next[0].id);
+            else setActiveClipId('');
+            return next;
+        });
+    };
+
     const handleAutoSplitSegments = (count: number) => {
         const seg = duration / count;
         const newClips: Clip[] = [];
@@ -305,6 +315,9 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                                <button onClick={handleSplit} title="Split at playhead" className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">
                                    <SplitSquareHorizontal size={14} className="text-blue-400"/> Split
                                </button>
+                               <button onClick={handleDeleteClip} disabled={!activeClip} title="Delete active clip" className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/20 border border-red-900/30 hover:bg-red-900/40 text-red-500 rounded-lg text-xs font-bold transition-colors whitespace-nowrap disabled:opacity-50">
+                                   <X size={14} strokeWidth={3} /> Delete
+                               </button>
                                <div className="w-px h-4 bg-dark-700 mx-2" />
                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest whitespace-nowrap">Auto-Split:</span>
                                <button onClick={() => handleAutoSplitSegments(10)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">
@@ -337,8 +350,8 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                            </div>
                        )}
 
-                       <button onClick={() => setIsEditing(false)} className="p-2 text-gray-400 hover:text-white rounded transition-colors absolute top-4 right-4 bg-dark-950 border border-dark-700 hover:bg-dark-800 z-10">
-                          <X size={16} />
+                       <button onClick={() => setIsEditing(false)} className="p-2 text-gray-400 hover:text-white rounded-lg transition-all absolute top-3 right-3 bg-dark-950 border border-dark-700 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-400 z-10 shadow-md">
+                          <X size={16} strokeWidth={2.5} />
                        </button>
                     </div>
 

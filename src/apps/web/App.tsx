@@ -11,8 +11,9 @@ import { CompareModal } from '../../ui/components/CompareModal';
 import { FolderDiffModal } from '../../ui/components/FolderDiffModal';
 import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
+import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Columns as CompareIcon, Bookmark, FileText, X } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Columns as CompareIcon, Bookmark, FileText, X, Play } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -67,7 +68,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
   
   // Collection & Clipboard
   const [clipboardItems, setClipboardItems] = useState<GridItem[]>([]);
-  const [, _setClipboardAction] = useState<ActionType>(null);
+  const [_clipboardAction, _setClipboardAction] = useState<ActionType>(null);
+  
+  const [slideshowItems, setSlideshowItems] = useState<GridItem[] | null>(null);
   const [collectionBasket, setCollectionBasket] = useState<GridItem[]>([]);
 
   const { selectedIdsArray, setSelectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
@@ -557,7 +560,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
 
       <div className="flex-1 flex overflow-hidden relative">
         {(selectedIds.size > 0 || clipboardItems.length > 0) && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-dark-800 border border-dark-600 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] p-2 animate-in slide-in-from-top duration-300">
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 bg-dark-800 border border-dark-600 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] p-2 animate-in slide-in-from-top duration-300">
              {selectedIds.size > 0 && (
                 <>
                   <div className="px-4 text-sm font-bold text-white border-r border-dark-600">{selectedIds.size} Selected</div>
@@ -577,6 +580,16 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
                      clearSelection();
                   }} className="flex items-center gap-2 px-4 py-2 hover:bg-dark-700 rounded-xl text-sm font-medium transition-colors">
                     <Copy size={16} /> Copy
+                  </button>
+                  <button onClick={() => {
+                        const arr = selectedIdsArray.filter(Boolean);
+                        const selImages = items.filter(i => {
+                             if (i.type !== 'file') return false;
+                             return arr.includes(i.pair.id) && /\.(jpe?g|png|gif|svg|webp|bmp)$/i.test(i.pair.id);
+                        });
+                        if (selImages.length > 0) setSlideshowItems(selImages);
+                  }} className="flex items-center gap-2 px-4 py-2 hover:bg-blue-500/20 hover:text-blue-400 rounded-xl text-sm font-medium transition-colors">
+                        <Play size={16} /> Slideshow
                   </button>
                   <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-2 px-4 py-2 hover:bg-red-500/20 hover:text-red-400 rounded-xl text-sm font-medium transition-colors">
                     <Trash2 size={16} /> Delete
@@ -754,7 +767,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
          <FolderDiffModal handleLeft={compareActive.left.handle as any} handleRight={compareActive.right.handle as any} onClose={() => setCompareActive(null)} />
       )}
 
-      {globalTooltip && (
+      {globalTooltip && !contextMenu && (
           <div className="fixed z-[300] p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl pointer-events-none animate-in fade-in zoom-in slide-in-from-left-2 duration-200" style={{ left: globalTooltip.x, top: globalTooltip.y, maxWidth: 280 }}>
              <p className="text-sm font-bold text-gray-100 truncate">{globalTooltip.item.type === 'file' ? globalTooltip.item.pair.id : globalTooltip.item.name}</p>
              {globalTooltip.item.type === 'file' ? (
@@ -768,6 +781,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
              ) : <p className="text-xs text-gray-500 mt-1">Directory / Folder</p>}
           </div>
       )}
+
+      {slideshowItems && <SlideshowModal items={slideshowItems} onClose={() => setSlideshowItems(null)} />}
     </div>
   );
 });
