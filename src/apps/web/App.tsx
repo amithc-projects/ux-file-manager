@@ -5,6 +5,7 @@ import { ScannerService } from '../../core/services/ScannerService';
 import { StorageService } from '../../core/services/StorageService';
 import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { GalleryView } from '../../ui/components/GalleryView';
+import { FilmstripView } from '../../ui/components/FilmstripView';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
 import { CompareModal } from '../../ui/components/CompareModal';
@@ -236,7 +237,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
           if (options?.sortBy) setSortBy(options.sortBy);
           if (options?.sortAsc !== undefined) setSortAsc(options.sortAsc);
           if (options?.viewMode) {
-              setViewMode(options.viewMode as string === 'filmstrip' ? 'gallery' : options.viewMode);
+              setViewMode(options.viewMode);
           }
 
           // Allow modifying pure UI params if root isn't even active
@@ -520,6 +521,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
         <div className="flex items-center gap-4 flex-none justify-center shrink-0">
           <div className="flex bg-dark-900 p-1 rounded-lg border border-dark-600 shrink-0">
              <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={16} /></button>
+             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Play size={16} /></button>
              <button title="Gallery View" onClick={() => setViewMode('gallery')} className={`p-1.5 rounded-md ${viewMode === 'gallery' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Columns size={16} /></button>
              <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={16} /></button>
           </div>
@@ -640,6 +642,18 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
             </div>
           ) : processedGroups.reduce((acc, curr) => acc + curr.items.length, 0) === 0 ? (
              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
+          ) : viewMode === 'filmstrip' ? (
+            <FilmstripView
+              groups={processedGroups}
+              selectedIdsArray={selectedIdsArray}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onItemContextMenu={(item, e) => {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 setContextMenu({ x: e.pageX, y: e.pageY, item });
+              }}
+            />
           ) : viewMode === 'gallery' ? (
             <GalleryView
               groups={processedGroups}

@@ -3,7 +3,7 @@ import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
 import { FileIcon, Image as ImageIcon, Folder, Film, Check } from 'lucide-react';
 
-export type ViewMode = 'grid' | 'gallery' | 'list';
+export type ViewMode = 'grid' | 'gallery' | 'filmstrip' | 'list';
 
 interface FileGridItemProps {
   item: GridItem;
