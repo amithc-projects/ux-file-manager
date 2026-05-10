@@ -1,0 +1,366 @@
+/**
+ * TransformCompareView — filmstrip strip + before/after compare workspace.
+ *
+ * Activated when compareMode='transform' is set on the web component.
+ *
+ * Layout:
+ *   ┌────────────────────────────────────────────┐
+ *   │  Custom controls (host-provided HTML)       │
+ *   ├──────────────────┬─────────────────────────┤
+ *   │   Before         │   After                  │  ← viewer
+ *   │   (original)     │   (processed)            │
+ *   ├────────────────────────────────────────────┤
+ *   │  ← scrollable thumbnail strip →            │
+ *   └────────────────────────────────────────────┘
+ *
+ * Callbacks (all optional, set as properties on the web component):
+ *   onCompareRender(file): Promise<{ beforeUrl, afterUrl, beforeLabel?, afterLabel? }
+ *                                  | { noPreview, noPreviewReason? }>
+ *   onCompareInfo(file):   Promise<void>   — fired when ℹ️ button clicked
+ *   customControlsHtml:    string          — injected HTML above the viewer
+ *   onBindCustomControls(container): void  — called once after HTML is injected
+ */
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { GridItem } from '../../core/models/FilePair';
+import { GroupedItems } from './FileGrid';
+import { useThumbnails } from '../hooks/useThumbnails';
+import { Folder, Film, FileIcon, Image as ImageIcon, Music, Check, Play, Info, Loader2, SplitSquareHorizontal } from 'lucide-react';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface CompareRenderResult {
+  beforeUrl?: string;
+  afterUrl?: string;
+  beforeLabel?: string;
+  afterLabel?: string;
+  noPreview?: boolean;
+  noPreviewReason?: string;
+}
+
+export interface TransformCompareViewProps {
+  groups: GroupedItems[];
+  selectedIdsArray: (string | null)[];
+  onItemClick: (id: string, e: React.MouseEvent) => void;
+  onItemDoubleClick: (item: GridItem, e: React.MouseEvent) => void;
+  onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
+  /** Async callback: receives the File object, returns before/after blob URLs */
+  onCompareRender?: (file: File) => Promise<CompareRenderResult>;
+  /** Called when the ℹ️ button is clicked — e.g. open sidecar/EXIF panel */
+  onCompareInfo?: (file: File) => Promise<void>;
+  /** Raw HTML string injected into the controls bar above the viewer */
+  customControlsHtml?: string;
+  /** Called once after customControlsHtml is mounted — wire up button handlers */
+  onBindCustomControls?: (container: HTMLDivElement) => void;
+  /** Exposed via useImperativeHandle so parent can call triggerProcess() */
+  triggerProcessRef?: React.MutableRefObject<(() => void) | null>;
+}
+
+// ── Thumbnail chip ────────────────────────────────────────────────────────────
+
+function StripThumb({
+  item, isSelected, selectionOrderIndex, totalSelected,
+  onClick, onDoubleClick, onContextMenu,
+}: {
+  item: GridItem;
+  isSelected: boolean;
+  selectionOrderIndex: number | null;
+  totalSelected: number;
+  onClick: (e: React.MouseEvent) => void;
+  onDoubleClick: (e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const isFile = item.type === 'file';
+  const pair = isFile ? item.pair : undefined;
+  const itemName = isFile ? pair!.id : item.name;
+  const isVideo = isFile && /\.(mp4|webm|mov|avi|mkv)$/i.test(itemName);
+  const thumbnailUrl = useThumbnails(pair?.mainHandle);
+
+  const renderThumb = () => {
+    if (!isFile) return <Folder size={36} className="text-blue-500/80" fill="currentColor" />;
+    if (thumbnailUrl) return <img src={thumbnailUrl} className="w-full h-full object-cover" alt={itemName} />;
+    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(itemName)) return <ImageIcon size={28} className="text-gray-500" />;
+    if (isVideo) return <Film size={28} className="text-gray-500" />;
+    if (/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName)) return <Music size={28} className="text-purple-500" />;
+    return <FileIcon size={28} className="text-gray-500" />;
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
+      className="flex flex-col gap-1 shrink-0 cursor-pointer select-none"
+      style={{ width: 88 }}
+    >
+      <div className={`relative w-[88px] h-[88px] rounded-md overflow-hidden border-2 flex items-center justify-center bg-[#111] transition-all ${
+        isSelected ? 'border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.5)]' : 'border-transparent opacity-60 hover:opacity-100'
+      }`}>
+        {renderThumb()}
+        {isVideo && (
+          <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-0.5 pointer-events-none">
+            <Play size={9} className="text-white" fill="white" />
+          </div>
+        )}
+        {isSelected && (
+          <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold shadow-md z-10 pointer-events-none">
+            {totalSelected === 1 || selectionOrderIndex === null ? <Check size={10} strokeWidth={3} /> : selectionOrderIndex}
+          </div>
+        )}
+      </div>
+      <p className="text-[10px] text-center text-gray-300 truncate w-[88px]">{itemName}</p>
+    </div>
+  );
+}
+
+// ── Before/After viewer ───────────────────────────────────────────────────────
+
+function CompareViewer({
+  result, loading, focusedFile,
+  onCompareInfo,
+}: {
+  result: CompareRenderResult | null;
+  loading: boolean;
+  focusedFile: File | null;
+  onCompareInfo?: (file: File) => Promise<void>;
+}) {
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-3 text-blue-400">
+          <Loader2 size={36} className="animate-spin" />
+          <span className="text-sm">Processing…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black text-gray-600">
+        <div className="flex flex-col items-center gap-2">
+          <SplitSquareHorizontal size={48} />
+          <p className="text-sm">Select a file to preview</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (result.noPreview) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black text-gray-500">
+        <p className="text-sm text-center px-8">{result.noPreviewReason ?? 'No preview available for this item.'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex bg-black overflow-hidden">
+      {/* Before */}
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden border-r border-dark-700/50">
+        {result.beforeUrl
+          ? <img src={result.beforeUrl} className="max-w-full max-h-full object-contain" alt="before" />
+          : <span className="text-gray-600 text-sm">No input</span>
+        }
+        <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+          {result.beforeLabel ?? 'Before'}
+        </div>
+      </div>
+
+      {/* After */}
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+        {result.afterUrl
+          ? <img src={result.afterUrl} className="max-w-full max-h-full object-contain" alt="after" />
+          : <span className="text-gray-600 text-sm">No output</span>
+        }
+        <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+          {result.afterLabel ?? 'After'}
+        </div>
+        {/* Info button */}
+        {onCompareInfo && focusedFile && (
+          <button
+            onClick={() => onCompareInfo(focusedFile)}
+            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-blue-600 text-white rounded-full transition-colors"
+            title="File info"
+          >
+            <Info size={14} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export function TransformCompareView({
+  groups,
+  selectedIdsArray,
+  onItemClick,
+  onItemDoubleClick,
+  onItemContextMenu,
+  onCompareRender,
+  onCompareInfo,
+  customControlsHtml,
+  onBindCustomControls,
+  triggerProcessRef,
+}: TransformCompareViewProps) {
+  const allItems = groups.flatMap(g => g.items);
+
+  // Strip scroll persistence
+  const stripRef = useRef<HTMLDivElement>(null);
+  const scrollLeftRef = useRef<number>(0);
+  useEffect(() => {
+    if (stripRef.current) stripRef.current.scrollLeft = scrollLeftRef.current;
+  }, []);
+  const handleScroll = () => {
+    if (stripRef.current) scrollLeftRef.current = stripRef.current.scrollLeft;
+  };
+
+  // Custom controls HTML injection
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const bindCalledRef = useRef(false);
+  useEffect(() => {
+    if (!controlsRef.current || !customControlsHtml) return;
+    controlsRef.current.innerHTML = customControlsHtml;
+    if (onBindCustomControls && !bindCalledRef.current) {
+      bindCalledRef.current = true;
+      onBindCustomControls(controlsRef.current);
+    }
+  }, [customControlsHtml, onBindCustomControls]);
+
+  // Focused item (first selected → first file → first item)
+  const focusedId = selectedIdsArray.find(Boolean);
+  const focusedItem =
+    allItems.find(i => (i.type === 'file' ? i.pair.id : i.name) === focusedId) ||
+    allItems.find(i => i.type === 'file') ||
+    allItems[0] || null;
+
+  // Compare render state
+  const [compareResult, setCompareResult] = useState<CompareRenderResult | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [focusedFile, setFocusedFile] = useState<File | null>(null);
+  const lastRenderedIdRef = useRef<string | null>(null);
+
+  const runRender = useCallback(async (item: GridItem | null) => {
+    if (!item || item.type !== 'file' || !onCompareRender) {
+      setCompareResult(null);
+      setFocusedFile(null);
+      return;
+    }
+    try {
+      setCompareLoading(true);
+      const file = await item.pair.mainHandle.getFile();
+      setFocusedFile(file);
+      const result = await onCompareRender(file);
+      setCompareResult(result);
+    } catch (err) {
+      console.error('[TransformCompareView] onCompareRender error', err);
+      setCompareResult({ noPreview: true, noPreviewReason: String(err) });
+    } finally {
+      setCompareLoading(false);
+    }
+  }, [onCompareRender]);
+
+  // Re-run render when focused item changes
+  useEffect(() => {
+    const newId = focusedItem ? (focusedItem.type === 'file' ? focusedItem.pair.id : focusedItem.name) : null;
+    if (newId === lastRenderedIdRef.current) return;
+    lastRenderedIdRef.current = newId ?? null;
+    runRender(focusedItem);
+  }, [focusedItem, runRender]);
+
+  // Expose triggerProcess so the host can call it (e.g. after video seek)
+  useEffect(() => {
+    if (triggerProcessRef) {
+      triggerProcessRef.current = () => runRender(focusedItem);
+    }
+    return () => { if (triggerProcessRef) triggerProcessRef.current = null; };
+  }, [triggerProcessRef, focusedItem, runRender]);
+
+  // Keyboard nav
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      const currentId = focusedItem
+        ? (focusedItem.type === 'file' ? focusedItem.pair.id : focusedItem.name)
+        : null;
+      const currentIdx = currentId
+        ? allItems.findIndex(i => (i.type === 'file' ? i.pair.id : i.name) === currentId)
+        : -1;
+      const newIdx = e.key === 'ArrowLeft'
+        ? Math.max(0, currentIdx - 1)
+        : Math.min(allItems.length - 1, currentIdx + 1);
+      if (newIdx !== currentIdx && allItems[newIdx]) {
+        const newItem = allItems[newIdx];
+        const newId = newItem.type === 'file' ? newItem.pair.id : newItem.name;
+        e.preventDefault();
+        onItemClick(newId, new MouseEvent('click') as unknown as React.MouseEvent);
+        setTimeout(() => {
+          if (stripRef.current) {
+            const el = stripRef.current.children[newIdx] as HTMLElement;
+            if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+          }
+        }, 0);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [allItems, focusedItem, onItemClick]);
+
+  if (allItems.length === 0) return null;
+
+  const totalSelected = selectedIdsArray.filter(Boolean).length;
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+
+      {/* Custom controls bar */}
+      {customControlsHtml && (
+        <div
+          ref={controlsRef}
+          className="shrink-0 bg-dark-800 border-b border-dark-700 px-3 py-2"
+        />
+      )}
+
+      {/* Before/After viewer */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <CompareViewer
+          result={compareResult}
+          loading={compareLoading}
+          focusedFile={focusedFile}
+          onCompareInfo={onCompareInfo}
+        />
+      </div>
+
+      {/* Thumbnail strip */}
+      <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 128 }}>
+        <div
+          ref={stripRef}
+          onScroll={handleScroll}
+          className="h-full flex gap-2 px-3 py-2 overflow-x-auto overflow-y-hidden items-start"
+          style={{ scrollbarWidth: 'thin' }}
+        >
+          {allItems.map(item => {
+            const id = item.type === 'file' ? item.pair.id : item.name;
+            const isSelected = selectedIdsArray.includes(id);
+            const selIdx = selectedIdsArray.indexOf(id);
+            return (
+              <StripThumb
+                key={id}
+                item={item}
+                isSelected={isSelected}
+                selectionOrderIndex={selIdx !== -1 ? selIdx + 1 : null}
+                totalSelected={totalSelected}
+                onClick={e => onItemClick(id, e)}
+                onDoubleClick={e => onItemDoubleClick(item, e)}
+                onContextMenu={e => onItemContextMenu(item, e)}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+    </div>
+  );
+}

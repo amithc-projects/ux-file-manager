@@ -5,7 +5,9 @@ import { ScannerService } from '../../core/services/ScannerService';
 import { StorageService } from '../../core/services/StorageService';
 import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { FilmstripView } from '../../ui/components/FilmstripView';
+import { TransformCompareView, CompareRenderResult } from '../../ui/components/TransformCompareView';
 import { HiddenFilesWarning } from '../../ui/components/HiddenFilesWarning';
+import { TypeFilters, TypeFilter, getTypeFilter } from '../../ui/components/TypeFilters';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
 import { CompareModal } from '../../ui/components/CompareModal';
@@ -14,7 +16,7 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -27,6 +29,12 @@ export interface AppProps {
   customSort?: ((a: GridItem, b: GridItem) => number) | null;
   hiddenFilesCount?: number;
   hiddenFilesMessage?: string;
+  compareMode?: 'two-file' | 'transform';
+  onCompareRender?: (file: File) => Promise<CompareRenderResult>;
+  onCompareInfo?: (file: File) => Promise<void>;
+  customControlsHtml?: string;
+  onBindCustomControls?: (container: HTMLDivElement) => void;
+  triggerProcessRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export interface NavigateOptions {
@@ -41,7 +49,7 @@ export interface AppRef {
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,6 +84,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   
   const [slideshowItems, setSlideshowItems] = useState<GridItem[] | null>(null);
   const [collectionBasket, setCollectionBasket] = useState<GridItem[]>([]);
+  const [childFolderMenuOpen, setChildFolderMenuOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const { selectedIdsArray, setSelectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
 
@@ -124,6 +134,13 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const closeContext = () => setContextMenu(null);
   const currentDir = pathStack.length > 0 ? pathStack[pathStack.length - 1] : null;
 
+  // childFolderMenuRef kept for potential future use but click-outside is handled via backdrop overlay
+
+  const childFolders = useMemo(
+    () => items.filter((i): i is Extract<typeof i, { type: 'folder' }> => i.type === 'folder' && i.name !== '..'),
+    [items]
+  );
+
   const loadHandleContentsToUI = useCallback(async (targetHandle: FileSystemDirectoryHandle) => {
       const { pairs, folders } = await ScannerService.scanDirectory(targetHandle);
       const populatedPairs = await Promise.all(pairs.map(async (pair) => {
@@ -135,6 +152,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         ...populatedPairs.map(p => ({ type: 'file' as const, pair: p }))
       ]);
       clearSelection();
+      setTypeFilter('all');
   }, [clearSelection]);
 
   useEffect(() => {
@@ -265,14 +283,77 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   };
 
   const tooltipTimeout = React.useRef<number | null>(null);
-  
+  const tooltipDimCache = React.useRef<Record<string, string>>({});
+
+  const loadDimensions = useCallback(async (item: GridItem): Promise<string> => {
+    if (item.type !== 'file') return '';
+    const id = item.pair.id;
+    if (tooltipDimCache.current[id]) return tooltipDimCache.current[id];
+
+    // Fast path: sidecar already has widthPx / heightPx
+    const meta = item.pair.metadata as any;
+    if (meta?.widthPx && meta?.heightPx) {
+      const dim = `${meta.widthPx} × ${meta.heightPx}`;
+      tooltipDimCache.current[id] = dim;
+      return dim;
+    }
+    // Also check common alternative keys (width/height, imageWidth/imageHeight)
+    const w = meta?.width ?? meta?.imageWidth;
+    const h = meta?.height ?? meta?.imageHeight;
+    if (w && h) {
+      const dim = `${w} × ${h}`;
+      tooltipDimCache.current[id] = dim;
+      return dim;
+    }
+
+    // Slow path: decode via offscreen element
+    const isImage = /\.(jpe?g|png|gif|webp|bmp)$/i.test(id);
+    const isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(id);
+    if (!isImage && !isVideo) return '';
+
+    try {
+      const file = await item.pair.mainHandle.getFile();
+      const url = URL.createObjectURL(file);
+      return await new Promise<string>((resolve) => {
+        if (isImage) {
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            const dim = `${img.naturalWidth} × ${img.naturalHeight}`;
+            tooltipDimCache.current[id] = dim;
+            resolve(dim);
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+          img.src = url;
+        } else {
+          const vid = document.createElement('video');
+          vid.preload = 'metadata';
+          vid.onloadedmetadata = () => {
+            URL.revokeObjectURL(url);
+            const dim = `${vid.videoWidth} × ${vid.videoHeight}`;
+            tooltipDimCache.current[id] = dim;
+            resolve(dim);
+          };
+          vid.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+          vid.src = url;
+        }
+      });
+    } catch { return ''; }
+  }, []);
+
   const handleItemHover = useCallback((item: GridItem, e: React.MouseEvent) => {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+      const x = rect.right + 10;
+      const y = Math.max(10, rect.top + (rect.height / 2) - 40);
       tooltipTimeout.current = window.setTimeout(() => {
-          setGlobalTooltip({ item, x: rect.right + 10, y: Math.max(10, rect.top + (rect.height / 2) - 40) });
+          setGlobalTooltip({ item, x, y });
+          // Lazily load dimensions and re-update the tooltip once available
+          loadDimensions(item).then(dim => {
+            if (dim) setGlobalTooltip(prev => prev?.item === item ? { ...prev } : prev);
+          });
       }, 500);
-  }, []);
+  }, [loadDimensions]);
 
   const handleItemLeave = useCallback(() => {
       if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
@@ -495,7 +576,18 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const processedGroups = useMemo(() => {
     let processable = (pathStack.length <= 1 ? items : [{ type: 'folder' as const, name: '..', handle: {} as any, lastModified: 0, size: 0 }, ...items]).filter(i => {
       const name = i.type === 'file' ? i.pair.id : i.name;
-      return name.toLowerCase().includes(searchQuery.toLowerCase());
+      const q = searchQuery.toLowerCase();
+      const nameMatch = name.toLowerCase().includes(q);
+      const sidecarMatch = i.type === 'file' && i.pair.metadata
+        ? JSON.stringify(i.pair.metadata).toLowerCase().includes(q)
+        : false;
+      if (!nameMatch && !sidecarMatch) return false;
+      // Type filter: when active hide folders (except '..') and filter files by category
+      if (typeFilter !== 'all') {
+        if (i.type === 'folder' && i.name !== '..') return false;
+        if (i.type === 'file' && getTypeFilter(i.pair.id) !== typeFilter) return false;
+      }
+      return true;
     });
 
     processable.sort((a, b) => {
@@ -536,93 +628,146 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     });
 
     return Object.entries(groupsMap).filter(([_, arr]) => arr.length > 0).map(([groupName, items]) => ({ groupName, items }));
-  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort]);
+  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter]);
 
   return (
     <div className="h-screen flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
-      <header className="h-14 border-b border-dark-700 bg-dark-800 flex items-center justify-between px-4 shrink-0 relative z-40 shadow-sm select-none">
-        <div className="flex items-center gap-2 flex-1 min-w-0 pr-4">
-          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-            <span className="font-bold text-white text-lg">S</span>
+      {/* ── Two-row header ───────────────────────────────────────────────────── */}
+      <header className="border-b border-dark-700 bg-dark-800 shrink-0 relative z-40 shadow-sm select-none">
+
+        {/* Row 1: Logo + breadcrumb + filter input + workspace button */}
+        <div className="flex items-center gap-2 px-3 h-11 border-b border-dark-700/60">
+          {/* Logo / open workspace */}
+          <button
+            onClick={handleOpenRootFolder}
+            title={pathStack.length > 0 ? 'Open different workspace' : 'Open workspace'}
+            className="w-7 h-7 rounded-lg bg-blue-500 hover:bg-blue-400 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0 transition-colors"
+          >
+            <FolderOpen size={14} className="text-white" />
+          </button>
+
+          {/* Breadcrumb + subfolder chevron — shares a flex-1 zone */}
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            {/* Scrollable breadcrumb path */}
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar font-medium text-sm tracking-tight scroll-smooth min-w-0">
+              {pathStack.length === 0 ? (
+                 <span className="text-base font-semibold text-gray-300 whitespace-nowrap">Sidekick</span>
+              ) : (
+                 pathStack.map((handle, idx) => (
+                   <React.Fragment key={idx + handle.name}>
+                     {idx > 0 && <span className="text-gray-600 mx-0.5">/</span>}
+                     <button
+                       onClick={async () => {
+                          if (idx === pathStack.length - 1) return;
+                          const targetStack = pathStack.slice(0, idx + 1);
+                          setPathStack(targetStack);
+                          setLoading(true);
+                          await loadHandleContentsToUI(handle);
+                          setLoading(false);
+                       }}
+                       className={`hover:text-blue-400 transition-colors whitespace-nowrap px-1.5 py-0.5 rounded-md ${idx === pathStack.length - 1 ? 'text-gray-100 font-semibold cursor-default' : 'text-gray-400 hover:bg-dark-700'}`}
+                     >
+                       {handle.name}
+                     </button>
+                   </React.Fragment>
+                 ))
+              )}
+            </div>
+
+            {/* Child folder dropdown chevron */}
+            {currentDir && childFolders.length > 0 && (
+              <div className="relative shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setChildFolderMenuOpen(o => !o); }}
+                  title={`Jump to subfolder (${childFolders.length})`}
+                  className={`flex items-center gap-0.5 px-1.5 py-1 rounded-lg transition-colors text-xs font-medium ${childFolderMenuOpen ? 'bg-dark-700 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
+                >
+                  <ChevronDown size={14} />
+                  <span className="text-[10px] text-gray-500">{childFolders.length}</span>
+                </button>
+                {childFolderMenuOpen && (
+                  <>
+                    {/* Backdrop — click outside to close, sits below the menu */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={(e) => { e.stopPropagation(); setChildFolderMenuOpen(false); }}
+                    />
+                    {/* Dropdown list — z-50 sits above the backdrop */}
+                    <div className="absolute top-full left-0 mt-1 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-xl z-50 overflow-hidden py-1 max-h-72 overflow-y-auto">
+                      {childFolders.map(f => (
+                        <button
+                          key={f.name}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChildFolderMenuOpen(false);
+                            setLoading(true);
+                            loadHandleContentsToUI(f.handle)
+                              .then(() => setPathStack(prev => [...prev, f.handle]))
+                              .catch(console.error)
+                              .finally(() => setLoading(false));
+                          }}
+                          className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-gray-200 hover:bg-dark-700 transition-colors"
+                        >
+                          <FolderOpen size={14} className="text-blue-400 shrink-0" />
+                          <span className="truncate">{f.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar font-medium text-sm tracking-tight scroll-smooth">
-            {pathStack.length === 0 ? (
-               <span className="text-lg font-semibold ml-2">Sidekick</span>
-            ) : (
-               pathStack.map((handle, idx) => (
-                 <React.Fragment key={idx + handle.name}>
-                   {idx > 0 && <span className="text-gray-600 mx-0.5">/</span>}
-                   <button 
-                     onClick={async () => {
-                        if (idx === pathStack.length - 1) return;
-                        const targetStack = pathStack.slice(0, idx + 1);
-                        setPathStack(targetStack);
-                        setLoading(true);
-                        await loadHandleContentsToUI(handle);
-                        setLoading(false);
-                     }}
-                     className={`hover:text-blue-400 transition-colors whitespace-nowrap px-2 py-0.5 rounded-md ${idx === pathStack.length - 1 ? 'text-gray-100 font-semibold cursor-default' : 'text-gray-400 hover:bg-dark-700'}`}
-                   >
-                     {handle.name}
-                   </button>
-                 </React.Fragment>
-               ))
+
+          {/* New Path button (only when inside a folder) */}
+          {currentDir && (
+            <button onClick={() => setPathPromptOpen(true)} title="New Path" className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors shrink-0">
+              <FolderPlus size={15} />
+            </button>
+          )}
+
+          {/* Filter input */}
+          <div className="relative shrink-0 w-36 sm:w-48">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Filter…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-dark-900 border border-dark-600 rounded-lg py-1 pl-8 pr-7 text-sm focus:outline-none focus:border-blue-500 transition-shadow"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                <X size={12} />
+              </button>
             )}
           </div>
         </div>
-        
-        <div className="flex items-center gap-4 flex-none justify-center shrink-0">
-          <div className="flex bg-dark-900 p-1 rounded-lg border border-dark-600 shrink-0">
-             <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={16} /></button>
-             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={16} /></button>
-             <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={16} /></button>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-400 bg-dark-900 p-1 rounded-lg border border-dark-600 shadow-inner shrink-0">
-            <label className="flex items-center gap-1 pl-2">Sort: 
-              <select className="bg-transparent text-white focus:outline-none cursor-pointer" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
-                <option value="name" className="bg-dark-800">Name</option><option value="type" className="bg-dark-800">Type</option>
-                <option value="date" className="bg-dark-800">Date</option><option value="size" className="bg-dark-800">Size</option>
-              </select>
-            </label>
-            <button onClick={() => setSortAsc(!sortAsc)} className="p-1 text-gray-400 hover:text-white bg-dark-800 rounded-md transition-colors" title={sortAsc ? "Ascending" : "Descending"}>
-              {sortAsc ? <SortAsc size={14} /> : <SortDesc size={14} />}
-            </button>
-            <div className="w-px h-4 bg-dark-600 mx-1"></div>
-            <label className="flex items-center gap-1 pr-2">Group: 
-              <select className="bg-transparent text-white focus:outline-none cursor-pointer" value={groupBy} onChange={e => setGroupBy(e.target.value as GroupBy)}>
-                <option value="none" className="bg-dark-800">None</option><option value="type" className="bg-dark-800">Type</option>
-              </select>
-            </label>
-          </div>
-          <div className="flex items-center gap-2 w-full max-w-[280px] relative ml-2 shrink-0">
-             <Search className="absolute left-3 w-4 h-4 text-gray-400" />
-             <input type="text" placeholder="Filter..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-dark-900 border border-dark-600 rounded-lg py-1.5 pl-9 pr-8 text-sm focus:outline-none focus:border-blue-500 transition-shadow"/>
-          </div>
-        </div>
-        
-        {/* ── Right header: action bar when selected, workspace buttons otherwise ── */}
-        <div className="flex items-center justify-end gap-2 flex-none min-w-0">
+
+        {/* Row 2: Sort/Group controls + view mode OR action bar when items selected */}
+        <div className="flex items-center px-3 h-10 gap-2">
           {(selectedIds.size > 0 || clipboardItems.length > 0) ? (
-            <div className="flex items-center gap-1">
+            /* ── Action bar (replaces sort controls when something is selected) ── */
+            <div className="flex items-center gap-1 w-full">
               {selectedIds.size > 0 && (
                 <>
-                  <span className="px-3 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap">{selectedIds.size} Selected</span>
+                  <span className="px-2 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap mr-1">{selectedIds.size} Selected</span>
                   {selectedIds.size === 2 && (
                     <button onClick={() => {
                       const arr = selectedIdsArray.filter(Boolean);
                       const iL = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[0]);
                       const iR = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[1]);
                       if (iL && iR) setCompareActive({ left: iL, right: iR });
-                    }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
-                      <CompareIcon size={15} /> Compare
+                    }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
+                      <CompareIcon size={14} /> Compare
                     </button>
                   )}
                   <button onClick={() => {
                     setClipboardItems(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)));
                     _setClipboardAction('copy');
                     clearSelection();
-                  }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-dark-700 rounded-lg text-sm font-medium transition-colors">
-                    <Copy size={15} /> Copy
+                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-dark-700 rounded-lg text-sm font-medium transition-colors">
+                    <Copy size={14} /> Copy
                   </button>
                   <button onClick={() => {
                     const arr = selectedIdsArray.filter(Boolean);
@@ -631,40 +776,67 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                       return arr.includes(i.pair.id) && /\.(jpe?g|png|gif|svg|webp|bmp)$/i.test(i.pair.id);
                     });
                     if (selImages.length > 0) setSlideshowItems(selImages);
-                  }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-sm font-medium transition-colors">
-                    <Play size={15} /> Slideshow
+                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-sm font-medium transition-colors">
+                    <Play size={14} /> Slideshow
                   </button>
-                  <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-sm font-medium transition-colors">
-                    <Trash2 size={15} /> Delete
+                  <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-sm font-medium transition-colors">
+                    <Trash2 size={14} /> Delete
                   </button>
                   <button onClick={clearSelection} className="p-1.5 hover:bg-dark-700 rounded-lg text-gray-500 hover:text-white transition-colors ml-1" title="Clear selection">
-                    <X size={15} />
+                    <X size={14} />
                   </button>
                 </>
               )}
               {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-5 bg-dark-600 mx-1" />}
               {clipboardItems.length > 0 && (
                 <>
-                  <span className="px-3 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap">{clipboardItems.length} Copied</span>
-                  <button onClick={executePasteClipboard} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-medium transition-colors border border-blue-500/30">
-                    <ClipboardPaste size={15} /> Paste Here
+                  <span className="px-2 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap">{clipboardItems.length} Copied</span>
+                  <button onClick={executePasteClipboard} className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-medium transition-colors border border-blue-500/30">
+                    <ClipboardPaste size={14} /> Paste Here
                   </button>
                   <button onClick={() => setClipboardItems([])} className="p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors ml-1" title="Clear clipboard">
-                    <X size={15} />
+                    <X size={14} />
                   </button>
                 </>
               )}
             </div>
           ) : (
+            /* ── Normal row 2: sort + group + view mode ── */
             <>
-              {currentDir && (
-                <button onClick={() => setPathPromptOpen(true)} className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 px-3 py-1.5 rounded-lg text-sm text-gray-300 font-medium transition-colors truncate hidden xl:flex">
-                  <FolderPlus size={16} /> New Path
+              {/* Sort */}
+              <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600 shrink-0">
+                <span className="text-gray-500">Sort:</span>
+                <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
+                  <option value="name" className="bg-dark-800">Name</option>
+                  <option value="type" className="bg-dark-800">Type</option>
+                  <option value="date" className="bg-dark-800">Date</option>
+                  <option value="size" className="bg-dark-800">Size</option>
+                </select>
+                <button onClick={() => setSortAsc(!sortAsc)} className="p-0.5 text-gray-400 hover:text-white rounded transition-colors" title={sortAsc ? 'Ascending' : 'Descending'}>
+                  {sortAsc ? <SortAsc size={13} /> : <SortDesc size={13} />}
                 </button>
-              )}
-              <button onClick={handleOpenRootFolder} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow shadow-blue-500/20 truncate">
-                <FolderOpen size={16} /> {pathStack.length > 0 ? 'Switch Workspace' : 'Open Workspace'}
-              </button>
+              </div>
+
+              {/* Group */}
+              <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600 shrink-0">
+                <span className="text-gray-500">Group:</span>
+                <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={groupBy} onChange={e => setGroupBy(e.target.value as GroupBy)}>
+                  <option value="none" className="bg-dark-800">None</option>
+                  <option value="type" className="bg-dark-800">Type</option>
+                </select>
+              </div>
+
+              {/* Type filter buttons */}
+              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+                <TypeFilters items={items} active={typeFilter} onChange={setTypeFilter} />
+              </div>
+
+              {/* View mode */}
+              <div className="flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0">
+                <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
+                <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
+                <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
+              </div>
             </>
           )}
         </div>
@@ -702,6 +874,23 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             </div>
           ) : processedGroups.reduce((acc, curr) => acc + curr.items.length, 0) === 0 ? (
              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
+          ) : compareMode === 'transform' ? (
+            <TransformCompareView
+              groups={processedGroups}
+              selectedIdsArray={selectedIdsArray}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onItemContextMenu={(item, e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setContextMenu({ x: e.pageX, y: e.pageY, item });
+              }}
+              onCompareRender={onCompareRender}
+              onCompareInfo={onCompareInfo}
+              customControlsHtml={customControlsHtml}
+              onBindCustomControls={onBindCustomControls}
+              triggerProcessRef={triggerProcessRef}
+            />
           ) : viewMode === 'filmstrip' ? (
             <FilmstripView
               groups={processedGroups}
@@ -839,6 +1028,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                       <span>{globalTooltip.item.pair.size ? `${(globalTooltip.item.pair.size / 1024).toFixed(2)} KB` : '0 KB'}</span>
                       <span>{globalTooltip.item.pair.lastModified ? new Date(globalTooltip.item.pair.lastModified).toLocaleString() : 'N/A'}</span>
                    </div>
+                   {tooltipDimCache.current[globalTooltip.item.pair.id] && (
+                     <p className="text-xs text-gray-400">{tooltipDimCache.current[globalTooltip.item.pair.id]} px</p>
+                   )}
                 </div>
              ) : <p className="text-xs text-gray-500 mt-1">Directory / Folder</p>}
           </div>
