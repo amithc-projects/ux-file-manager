@@ -1,9 +1,9 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { FileIcon, Image as ImageIcon, Folder, Film, Check } from 'lucide-react';
+import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music } from 'lucide-react';
 
-export type ViewMode = 'grid' | 'gallery' | 'list';
+export type ViewMode = 'grid' | 'gallery' | 'filmstrip' | 'list';
 
 interface FileGridItemProps {
   item: GridItem;
@@ -44,14 +44,16 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
   const thumbnailUrl = useThumbnails(pair?.mainHandle);
   
   const itemName = isFile ? pair!.id : item.name;
-  const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp)$/i.test(itemName);
-  const isVideo = isFile && /\.(mp4|webm|ogg|mov)$/i.test(itemName);
+  const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
+  const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
+  const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
 
   const IconComponent = () => {
     if (!isFile) return <Folder size={viewMode === 'list' ? 24 : 64} className="text-blue-500/80 drop-shadow-md" fill="currentColor" />;
     if (thumbnailUrl) return <img src={thumbnailUrl} alt={itemName} className="w-full h-full object-cover rounded-md pointer-events-none" />;
     if (isImage) return <ImageIcon size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
     if (isVideo) return <Film size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
+    if (isAudio) return <Music size={viewMode === 'list' ? 20 : 48} className="text-purple-500 pointer-events-none" />;
     return <FileIcon size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
   };
 

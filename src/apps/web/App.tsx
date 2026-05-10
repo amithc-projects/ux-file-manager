@@ -5,6 +5,8 @@ import { ScannerService } from '../../core/services/ScannerService';
 import { StorageService } from '../../core/services/StorageService';
 import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { GalleryView } from '../../ui/components/GalleryView';
+import { FilmstripView } from '../../ui/components/FilmstripView';
+import { HiddenFilesWarning } from '../../ui/components/HiddenFilesWarning';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
 import { CompareModal } from '../../ui/components/CompareModal';
@@ -23,6 +25,9 @@ interface ContextMenuState { x: number; y: number; item: GridItem; }
 
 export interface AppProps {
   onTelemetry?: (event: string, payload: any) => void;
+  customSort?: ((a: GridItem, b: GridItem) => number) | null;
+  hiddenFilesCount?: number;
+  hiddenFilesMessage?: string;
 }
 
 export interface NavigateOptions {
@@ -37,7 +42,7 @@ export interface AppRef {
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,6 +90,26 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
      if (onTelemetry) {
         const targets = items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name));
         onTelemetry('sidekick:selection', { items: targets.map(t => t.type === 'file' ? t.pair.id : t.name) });
+
+        // sidekick:file-focus — fires when exactly one file is selected
+        const fileTargets = targets.filter(t => t.type === 'file');
+        if (fileTargets.length === 1) {
+           const item = fileTargets[0];
+           if (item.type === 'file') {
+              const pair = item.pair;
+              pair.mainHandle.getFile().then((f) => {
+                onTelemetry('sidekick:file-focus', {
+                   filename:     pair.id,
+                   handle:       pair.mainHandle,
+                   metadata:     pair.metadata ?? null,
+                   size:         f.size,
+                   lastModified: f.lastModified,
+                });
+              }).catch(() => {});
+           }
+        } else {
+           onTelemetry('sidekick:file-focus', null);
+        }
      }
   }, [selectedIds, items, onTelemetry]);
 
@@ -236,7 +261,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
           if (options?.sortBy) setSortBy(options.sortBy);
           if (options?.sortAsc !== undefined) setSortAsc(options.sortAsc);
           if (options?.viewMode) {
-              setViewMode(options.viewMode as string === 'filmstrip' ? 'gallery' : options.viewMode);
+              setViewMode(options.viewMode);
           }
 
           // Allow modifying pure UI params if root isn't even active
@@ -392,7 +417,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
           
                     if (item.pair.sidecarHandle) {
                        const sidecarSourceFile = await item.pair.sidecarHandle.getFile();
-                       const targetSidecarHandle = await targetDir.getFileHandle(uniqueId + '.json', { create: true });
+                       const targetSidecarHandle = await targetDir.getFileHandle('.' + uniqueId, { create: true });
                        const wSidecar = await (targetSidecarHandle as any).createWritable();
                        await wSidecar.write(sidecarSourceFile);
                        await wSidecar.close();
@@ -466,6 +491,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
       return sortAsc ? result : -result;
     });
 
+    // Apply optional custom sort after the built-in sort
+    if (customSort) processable.sort(customSort);
+
     if (groupBy === 'none') return [{ groupName: '', items: processable }];
     
     const groupsMap: Record<string, GridItem[]> = { 'Navigation': [], 'Folders': [], 'Images': [], 'Documents': [], 'Videos': [], 'Other Files': [] };
@@ -482,7 +510,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
     });
 
     return Object.entries(groupsMap).filter(([_, arr]) => arr.length > 0).map(([groupName, items]) => ({ groupName, items }));
-  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy]);
+  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort]);
 
   return (
     <div className="h-screen flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
@@ -520,6 +548,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
         <div className="flex items-center gap-4 flex-none justify-center shrink-0">
           <div className="flex bg-dark-900 p-1 rounded-lg border border-dark-600 shrink-0">
              <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={16} /></button>
+             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Play size={16} /></button>
              <button title="Gallery View" onClick={() => setViewMode('gallery')} className={`p-1.5 rounded-md ${viewMode === 'gallery' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Columns size={16} /></button>
              <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={16} /></button>
           </div>
@@ -612,6 +641,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
         )}
 
         <main className="flex-1 flex flex-col bg-dark-900 relative overflow-hidden w-full h-full">
+          <HiddenFilesWarning count={hiddenFilesCount} message={hiddenFilesMessage} />
           {loading ? (
              <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 backdrop-blur-sm">
                 <div className="flex flex-col items-center gap-4">
@@ -640,6 +670,18 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
             </div>
           ) : processedGroups.reduce((acc, curr) => acc + curr.items.length, 0) === 0 ? (
              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
+          ) : viewMode === 'filmstrip' ? (
+            <FilmstripView
+              groups={processedGroups}
+              selectedIdsArray={selectedIdsArray}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onItemContextMenu={(item, e) => {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 setContextMenu({ x: e.pageX, y: e.pageY, item });
+              }}
+            />
           ) : viewMode === 'gallery' ? (
             <GalleryView
               groups={processedGroups}
