@@ -7,6 +7,21 @@ class SidekickManager extends HTMLElement {
   private root: ReactDOM.Root | null = null;
   private appRef = React.createRef<any>();
 
+  // ── Imperative properties (set by host before or after connectedCallback) ──
+  // Each setter triggers a re-render so the React tree sees the new value.
+
+  private _customSort: ((a: any, b: any) => number) | null = null;
+  get customSort() { return this._customSort; }
+  set customSort(fn: ((a: any, b: any) => number) | null) {
+    this._customSort = fn;
+    this._rerender();
+  }
+
+  /** Double-click handler — receives (entry, index, filteredList). */
+  onDoubleClick: ((entry: any, index: number, filtered: any[]) => void) | null = null;
+
+  // ── Methods ───────────────────────────────────────────────────────────────
+
   navigate(path: string, options?: any) {
     if (this.appRef.current) {
         this.appRef.current.navigate(path, options);
@@ -17,6 +32,32 @@ class SidekickManager extends HTMLElement {
     if (this.appRef.current) {
         this.appRef.current.setRoot(handle);
     }
+  }
+
+  /** Re-run the transform compare render on the currently active file. */
+  triggerProcess() {
+    if (this.appRef.current?.triggerProcess) {
+        this.appRef.current.triggerProcess();
+    }
+  }
+
+  /** Re-render the React tree with the latest imperative prop values. */
+  private _rerender() {
+    if (!this.root) return;
+    const shadow = this.shadowRoot;
+    if (!shadow) return;
+    const handleTelemetry = (eventName: string, payload: any) => {
+       this.dispatchEvent(new CustomEvent(eventName, { detail: payload, bubbles: true, composed: true }));
+    };
+    this.root.render(
+      <React.StrictMode>
+        <App
+          onTelemetry={handleTelemetry}
+          ref={this.appRef}
+          customSort={this._customSort ?? undefined}
+        />
+      </React.StrictMode>
+    );
   }
 
   connectedCallback() {
@@ -45,7 +86,11 @@ class SidekickManager extends HTMLElement {
 
     this.root.render(
       <React.StrictMode>
-        <App onTelemetry={handleTelemetry} ref={this.appRef} />
+        <App
+          onTelemetry={handleTelemetry}
+          ref={this.appRef}
+          customSort={this._customSort ?? undefined}
+        />
       </React.StrictMode>
     );
   }

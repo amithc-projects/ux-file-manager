@@ -10,7 +10,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
 import { FileViewer } from './FileViewer';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
 
 interface FilmstripViewProps {
@@ -45,6 +45,7 @@ function StripThumb({
   const itemName = isFile ? pair!.id : item.name;
   const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
   const isVideo = isFile && /\.(mp4|webm|mov|avi|mkv)$/i.test(itemName);
+  const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
   const thumbnailUrl = useThumbnails(pair?.mainHandle);
 
   const renderThumb = () => {
@@ -52,6 +53,7 @@ function StripThumb({
     if (thumbnailUrl) return <img src={thumbnailUrl} className="w-full h-full object-cover" alt={itemName} />;
     if (isImage) return <ImageIcon size={28} className="text-gray-500" />;
     if (isVideo) return <Film size={28} className="text-gray-500" />;
+    if (isAudio) return <Music size={28} className="text-purple-500" />;
     return <FileIcon size={28} className="text-gray-500" />;
   };
 

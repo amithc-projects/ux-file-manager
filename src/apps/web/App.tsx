@@ -24,6 +24,7 @@ interface ContextMenuState { x: number; y: number; item: GridItem; }
 
 export interface AppProps {
   onTelemetry?: (event: string, payload: any) => void;
+  customSort?: ((a: GridItem, b: GridItem) => number) | null;
 }
 
 export interface NavigateOptions {
@@ -38,7 +39,7 @@ export interface AppRef {
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,6 +87,26 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
      if (onTelemetry) {
         const targets = items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name));
         onTelemetry('sidekick:selection', { items: targets.map(t => t.type === 'file' ? t.pair.id : t.name) });
+
+        // sidekick:file-focus — fires when exactly one file is selected
+        const fileTargets = targets.filter(t => t.type === 'file');
+        if (fileTargets.length === 1) {
+           const item = fileTargets[0];
+           if (item.type === 'file') {
+              const pair = item.pair;
+              pair.mainHandle.getFile().then((f) => {
+                onTelemetry('sidekick:file-focus', {
+                   filename:     pair.id,
+                   handle:       pair.mainHandle,
+                   metadata:     pair.metadata ?? null,
+                   size:         f.size,
+                   lastModified: f.lastModified,
+                });
+              }).catch(() => {});
+           }
+        } else {
+           onTelemetry('sidekick:file-focus', null);
+        }
      }
   }, [selectedIds, items, onTelemetry]);
 
@@ -393,7 +414,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
           
                     if (item.pair.sidecarHandle) {
                        const sidecarSourceFile = await item.pair.sidecarHandle.getFile();
-                       const targetSidecarHandle = await targetDir.getFileHandle(uniqueId + '.json', { create: true });
+                       const targetSidecarHandle = await targetDir.getFileHandle('.' + uniqueId, { create: true });
                        const wSidecar = await (targetSidecarHandle as any).createWritable();
                        await wSidecar.write(sidecarSourceFile);
                        await wSidecar.close();
@@ -467,6 +488,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
       return sortAsc ? result : -result;
     });
 
+    // Apply optional custom sort after the built-in sort
+    if (customSort) processable.sort(customSort);
+
     if (groupBy === 'none') return [{ groupName: '', items: processable }];
     
     const groupsMap: Record<string, GridItem[]> = { 'Navigation': [], 'Folders': [], 'Images': [], 'Documents': [], 'Videos': [], 'Other Files': [] };
@@ -483,7 +507,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry }, ref) => {
     });
 
     return Object.entries(groupsMap).filter(([_, arr]) => arr.length > 0).map(([groupName, items]) => ({ groupName, items }));
-  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy]);
+  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort]);
 
   return (
     <div className="h-screen flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
