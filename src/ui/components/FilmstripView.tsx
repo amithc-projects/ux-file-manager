@@ -40,60 +40,6 @@ function formatBytes(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-// ── Video first-frame thumbnail ───────────────────────────────────────────────
-
-function useVideoThumbnail(handle?: FileSystemFileHandle): string | null {
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!handle) return;
-    if (!/\.(mp4|webm|mov|avi|mkv)$/i.test(handle.name)) return;
-
-    let objectUrl: string | null = null;
-    let thumbUrl: string | null = null;
-    let isActive = true;
-
-    handle.getFile().then((file) => {
-      if (!isActive) return;
-      objectUrl = URL.createObjectURL(file);
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.muted = true;
-      video.src = objectUrl;
-      video.currentTime = 0.5; // seek slightly past start for black-frame avoidance
-
-      const onSeeked = () => {
-        if (!isActive) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 160;
-        canvas.height = video.videoHeight || 90;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => {
-            if (blob && isActive) {
-              thumbUrl = URL.createObjectURL(blob);
-              setUrl(thumbUrl);
-            }
-          }, 'image/jpeg', 0.8);
-        }
-        video.src = '';
-      };
-
-      video.addEventListener('seeked', onSeeked, { once: true });
-      video.addEventListener('error', () => { video.src = ''; }, { once: true });
-    }).catch(() => {});
-
-    return () => {
-      isActive = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-      if (thumbUrl) URL.revokeObjectURL(thumbUrl);
-    };
-  }, [handle]);
-
-  return url;
-}
-
 // ── Viewer area — renders the focused file ────────────────────────────────────
 
 function FilmstripViewer({ item }: { item: GridItem | null }) {
@@ -198,9 +144,7 @@ function StripThumb({
   const itemName = isFile ? pair!.id : item.name;
   const type = isFile ? getMediaType(itemName) : 'folder';
 
-  const imageThumbnailUrl = useThumbnails(type === 'image' ? pair?.mainHandle : undefined);
-  const videoThumbnailUrl = useVideoThumbnail(type === 'video' ? pair?.mainHandle : undefined);
-  const thumbnailUrl = imageThumbnailUrl || videoThumbnailUrl;
+  const thumbnailUrl = useThumbnails(pair?.mainHandle);
 
   // Tooltip text
   const tooltipLines: string[] = [itemName];
