@@ -6,6 +6,7 @@ import { StorageService } from '../../core/services/StorageService';
 import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { GalleryView } from '../../ui/components/GalleryView';
 import { FilmstripView } from '../../ui/components/FilmstripView';
+import { HiddenFilesWarning } from '../../ui/components/HiddenFilesWarning';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
 import { CompareModal } from '../../ui/components/CompareModal';
@@ -25,6 +26,8 @@ interface ContextMenuState { x: number; y: number; item: GridItem; }
 export interface AppProps {
   onTelemetry?: (event: string, payload: any) => void;
   customSort?: ((a: GridItem, b: GridItem) => number) | null;
+  hiddenFilesCount?: number;
+  hiddenFilesMessage?: string;
 }
 
 export interface NavigateOptions {
@@ -39,7 +42,7 @@ export interface AppRef {
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -638,6 +641,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort }, ref
         )}
 
         <main className="flex-1 flex flex-col bg-dark-900 relative overflow-hidden w-full h-full">
+          <HiddenFilesWarning count={hiddenFilesCount} message={hiddenFilesMessage} />
           {loading ? (
              <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 backdrop-blur-sm">
                 <div className="flex flex-col items-center gap-4">
