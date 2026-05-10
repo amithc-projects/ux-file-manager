@@ -4,7 +4,6 @@ import { GridItem, WorkspaceFolder } from '../../core/models/FilePair';
 import { ScannerService } from '../../core/services/ScannerService';
 import { StorageService } from '../../core/services/StorageService';
 import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
-import { GalleryView } from '../../ui/components/GalleryView';
 import { FilmstripView } from '../../ui/components/FilmstripView';
 import { HiddenFilesWarning } from '../../ui/components/HiddenFilesWarning';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
@@ -15,7 +14,7 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Columns as CompareIcon, Bookmark, FileText, X, Play } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -549,7 +548,6 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           <div className="flex bg-dark-900 p-1 rounded-lg border border-dark-600 shrink-0">
              <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={16} /></button>
              <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Play size={16} /></button>
-             <button title="Gallery View" onClick={() => setViewMode('gallery')} className={`p-1.5 rounded-md ${viewMode === 'gallery' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Columns size={16} /></button>
              <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={16} /></button>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-400 bg-dark-900 p-1 rounded-lg border border-dark-600 shadow-inner shrink-0">
@@ -672,18 +670,6 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
           ) : viewMode === 'filmstrip' ? (
             <FilmstripView
-              groups={processedGroups}
-              selectedIdsArray={selectedIdsArray}
-              onItemClick={handleItemClick}
-              onItemDoubleClick={handleItemDoubleClick}
-              onItemContextMenu={(item, e) => {
-                 e.preventDefault();
-                 e.stopPropagation();
-                 setContextMenu({ x: e.pageX, y: e.pageY, item });
-              }}
-            />
-          ) : viewMode === 'gallery' ? (
-            <GalleryView
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
               onItemClick={handleItemClick}

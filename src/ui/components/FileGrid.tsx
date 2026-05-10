@@ -3,7 +3,7 @@ import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
 import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music } from 'lucide-react';
 
-export type ViewMode = 'grid' | 'gallery' | 'filmstrip' | 'list';
+export type ViewMode = 'grid' | 'filmstrip' | 'list';
 
 interface FileGridItemProps {
   item: GridItem;
@@ -200,9 +200,7 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onIt
       );
     }
 
-    const gridCols = viewMode === 'gallery' 
-      ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
-      : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8';
+    const gridCols = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8';
 
     return (
       <div className={`grid ${gridCols} gap-4 w-full items-start mb-8`}>
