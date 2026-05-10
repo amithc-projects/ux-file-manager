@@ -14,7 +14,7 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -574,7 +574,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         <div className="flex items-center gap-4 flex-none justify-center shrink-0">
           <div className="flex bg-dark-900 p-1 rounded-lg border border-dark-600 shrink-0">
              <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={16} /></button>
-             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Play size={16} /></button>
+             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={16} /></button>
              <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={16} /></button>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-400 bg-dark-900 p-1 rounded-lg border border-dark-600 shadow-inner shrink-0">
@@ -600,70 +600,77 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           </div>
         </div>
         
-        <div className="w-80 flex justify-end gap-2">
-          {currentDir && (
-             <button onClick={() => setPathPromptOpen(true)} className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 px-3 py-1.5 rounded-lg text-sm text-gray-300 font-medium transition-colors truncate hidden xl:flex">
-               <FolderPlus size={16} /> New Path
-             </button>
+        {/* ── Right header: action bar when selected, workspace buttons otherwise ── */}
+        <div className="flex items-center justify-end gap-2 flex-none min-w-0">
+          {(selectedIds.size > 0 || clipboardItems.length > 0) ? (
+            <div className="flex items-center gap-1">
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="px-3 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap">{selectedIds.size} Selected</span>
+                  {selectedIds.size === 2 && (
+                    <button onClick={() => {
+                      const arr = selectedIdsArray.filter(Boolean);
+                      const iL = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[0]);
+                      const iR = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[1]);
+                      if (iL && iR) setCompareActive({ left: iL, right: iR });
+                    }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
+                      <CompareIcon size={15} /> Compare
+                    </button>
+                  )}
+                  <button onClick={() => {
+                    setClipboardItems(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)));
+                    _setClipboardAction('copy');
+                    clearSelection();
+                  }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-dark-700 rounded-lg text-sm font-medium transition-colors">
+                    <Copy size={15} /> Copy
+                  </button>
+                  <button onClick={() => {
+                    const arr = selectedIdsArray.filter(Boolean);
+                    const selImages = items.filter(i => {
+                      if (i.type !== 'file') return false;
+                      return arr.includes(i.pair.id) && /\.(jpe?g|png|gif|svg|webp|bmp)$/i.test(i.pair.id);
+                    });
+                    if (selImages.length > 0) setSlideshowItems(selImages);
+                  }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-sm font-medium transition-colors">
+                    <Play size={15} /> Slideshow
+                  </button>
+                  <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-sm font-medium transition-colors">
+                    <Trash2 size={15} /> Delete
+                  </button>
+                  <button onClick={clearSelection} className="p-1.5 hover:bg-dark-700 rounded-lg text-gray-500 hover:text-white transition-colors ml-1" title="Clear selection">
+                    <X size={15} />
+                  </button>
+                </>
+              )}
+              {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-5 bg-dark-600 mx-1" />}
+              {clipboardItems.length > 0 && (
+                <>
+                  <span className="px-3 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap">{clipboardItems.length} Copied</span>
+                  <button onClick={executePasteClipboard} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-medium transition-colors border border-blue-500/30">
+                    <ClipboardPaste size={15} /> Paste Here
+                  </button>
+                  <button onClick={() => setClipboardItems([])} className="p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors ml-1" title="Clear clipboard">
+                    <X size={15} />
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
+              {currentDir && (
+                <button onClick={() => setPathPromptOpen(true)} className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 px-3 py-1.5 rounded-lg text-sm text-gray-300 font-medium transition-colors truncate hidden xl:flex">
+                  <FolderPlus size={16} /> New Path
+                </button>
+              )}
+              <button onClick={handleOpenRootFolder} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow shadow-blue-500/20 truncate">
+                <FolderOpen size={16} /> {pathStack.length > 0 ? 'Switch Workspace' : 'Open Workspace'}
+              </button>
+            </>
           )}
-          <button onClick={handleOpenRootFolder} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow shadow-blue-500/20 truncate">
-            <FolderOpen size={16} /> {pathStack.length > 0 ? 'Switch Workspace' : 'Open Workspace'}
-          </button>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        {(selectedIds.size > 0 || clipboardItems.length > 0) && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 bg-dark-800 border border-dark-600 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] p-2 animate-in slide-in-from-top duration-300">
-             {selectedIds.size > 0 && (
-                <>
-                  <div className="px-4 text-sm font-bold text-white border-r border-dark-600">{selectedIds.size} Selected</div>
-                  {selectedIds.size === 2 && (
-                     <button onClick={() => {
-                        const arr = selectedIdsArray.filter(Boolean);
-                        const iL = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[0]);
-                        const iR = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[1]);
-                        if (iL && iR) setCompareActive({ left: iL, right: iR });
-                     }} className="flex items-center gap-2 px-4 py-2 hover:bg-green-500/20 hover:text-green-400 rounded-xl text-sm font-medium transition-colors">
-                        <CompareIcon size={16} /> Compare Matrix
-                     </button>
-                  )}
-                  <button onClick={() => {
-                     setClipboardItems(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)));
-                     _setClipboardAction('copy');
-                     clearSelection();
-                  }} className="flex items-center gap-2 px-4 py-2 hover:bg-dark-700 rounded-xl text-sm font-medium transition-colors">
-                    <Copy size={16} /> Copy
-                  </button>
-                  <button onClick={() => {
-                        const arr = selectedIdsArray.filter(Boolean);
-                        const selImages = items.filter(i => {
-                             if (i.type !== 'file') return false;
-                             return arr.includes(i.pair.id) && /\.(jpe?g|png|gif|svg|webp|bmp)$/i.test(i.pair.id);
-                        });
-                        if (selImages.length > 0) setSlideshowItems(selImages);
-                  }} className="flex items-center gap-2 px-4 py-2 hover:bg-blue-500/20 hover:text-blue-400 rounded-xl text-sm font-medium transition-colors">
-                        <Play size={16} /> Slideshow
-                  </button>
-                  <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-2 px-4 py-2 hover:bg-red-500/20 hover:text-red-400 rounded-xl text-sm font-medium transition-colors">
-                    <Trash2 size={16} /> Delete
-                  </button>
-                </>
-             )}
-             {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-6 bg-dark-600 mx-2"></div>}
-             {clipboardItems.length > 0 && (
-                <>
-                  <div className="px-4 text-sm font-bold text-white border-r border-dark-600">{clipboardItems.length} Copied</div>
-                  <button onClick={executePasteClipboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl text-sm font-medium transition-colors border border-blue-500/30 ml-2">
-                    <ClipboardPaste size={16} /> Paste Here
-                  </button>
-                  <button onClick={() => setClipboardItems([])} className="flex items-center justify-center px-3 py-2 hover:bg-red-500/20 hover:text-red-400 rounded-xl text-sm font-medium transition-colors ml-1" title="Clear Clipboard">
-                    <X size={16} />
-                  </button>
-                </>
-             )}
-          </div>
-        )}
 
         <main className="flex-1 flex flex-col bg-dark-900 relative overflow-hidden w-full h-full">
           <HiddenFilesWarning count={hiddenFilesCount} message={hiddenFilesMessage} />
