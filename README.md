@@ -12,6 +12,8 @@ Leveraging the **File System Access API**, Sidekick bypasses the need for local 
   - Generates ZIP extraction maps visually.
   - Mounts native vector PDFs directly over internal canvases.
   - Projects `jpg`, `png`, `webp`, `mp4`, `webm` live from native browser streams.
+- **Native Video Editor & Splitter:** Built-in video trimming engine utilizing `mediabunny` WASM processing for lossless clipping, timeline scrubbing, and multi-segment auto-splitting explicitly in the browser sandbox.
+- **Native Slideshow Engine:** High-performance, full-screen slideshow viewer supporting bulk image selection and automated 3-second interval playback with arrow-key navigation.
 - **Native Context Bindings:** Bypasses limitations on traditional browsers by tapping into active Context Menus for features like `Copy File Contents`, piping text and binary Arrays directly into OS clipboards.
 - **Sidecar Metadata Engine:** Seamlessly hides and integrates metadata sidecars (`.meta.json`, `filename.json`) automatically bridging EXIF arrays and system bounds back onto the primary nodes.
 - **Selection Modifiers:** Emulates traditional macOS Finder / Windows Explorer cursor bindings (`Shift`, `Cmd`, `Alt` clicks).

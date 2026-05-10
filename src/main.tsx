@@ -61,6 +61,14 @@ class SidekickManager extends HTMLElement {
     this._rerender();
   }
 
+  /** Custom buttons shown in the selection action bar. Each: { label, icon?, onClick(selectedIds) } */
+  private _selectionActions: any[] = [];
+  get selectionActions() { return this._selectionActions; }
+  set selectionActions(actions: any[]) {
+    this._selectionActions = actions ?? [];
+    this._rerender();
+  }
+
   // Internal ref so triggerProcess() can call back into the React tree
   private _triggerProcessRef: React.MutableRefObject<(() => void) | null> = { current: null };
 
@@ -102,6 +110,7 @@ class SidekickManager extends HTMLElement {
           customControlsHtml={this._compareControls || undefined}
           onBindCustomControls={this._compareBindControls ?? undefined}
           triggerProcessRef={this._triggerProcessRef}
+          selectionActions={this._selectionActions}
         />
       </React.StrictMode>
     );
