@@ -1,0 +1,1 @@
+{"name":"Sidekick File Manager","short_name":"Sidekick","start_url":"./","display":"standalone","background_color":"#09090b","lang":"en","scope":"./","description":"Local-first file management","theme_color":"#09090b","icons":[{"src":"pwa-icon.svg","sizes":"192x192 512x512","type":"image/svg+xml","purpose":"any maskable"}]}

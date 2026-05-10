@@ -10,7 +10,7 @@ class SidekickManager extends HTMLElement {
 
   // ── Observed HTML attributes ───────────────────────────────────────────────
   static get observedAttributes() {
-    return ['hidden-files-count', 'hidden-files-message'];
+    return ['hidden-files-count', 'hidden-files-message', 'compare-mode'];
   }
 
   attributeChangedCallback() {
@@ -18,7 +18,6 @@ class SidekickManager extends HTMLElement {
   }
 
   // ── Imperative properties ─────────────────────────────────────────────────
-  // Each setter triggers a re-render so React sees the new value.
 
   private _customSort: ((a: any, b: any) => number) | null = null;
   get customSort() { return this._customSort; }
@@ -27,8 +26,43 @@ class SidekickManager extends HTMLElement {
     this._rerender();
   }
 
-  /** Double-click handler — receives (entry, index, filteredList). */
+  /** Called by host to open a file info panel. Receives the File object. */
   onDoubleClick: ((entry: any, index: number, filtered: any[]) => void) | null = null;
+
+  /** Transform compare: async (file: File) => { beforeUrl, afterUrl, beforeLabel?, afterLabel? } | { noPreview, noPreviewReason? } */
+  private _onCompareRender: ((file: File) => Promise<any>) | null = null;
+  get compareRender() { return this._onCompareRender; }
+  set compareRender(fn: ((file: File) => Promise<any>) | null) {
+    this._onCompareRender = fn;
+    this._rerender();
+  }
+
+  /** Called when ℹ️ button clicked in transform compare view. Receives File. */
+  private _onCompareInfo: ((file: File) => Promise<void>) | null = null;
+  get compareInfo() { return this._onCompareInfo; }
+  set compareInfo(fn: ((file: File) => Promise<void>) | null) {
+    this._onCompareInfo = fn;
+    this._rerender();
+  }
+
+  /** Raw HTML string rendered in the controls bar above the compare viewer */
+  private _compareControls: string = '';
+  get compareControls() { return this._compareControls; }
+  set compareControls(html: string) {
+    this._compareControls = html;
+    this._rerender();
+  }
+
+  /** Called once after compareControls HTML is injected. Wire up button handlers here. */
+  private _compareBindControls: ((container: HTMLDivElement) => void) | null = null;
+  get compareBindControls() { return this._compareBindControls; }
+  set compareBindControls(fn: ((container: HTMLDivElement) => void) | null) {
+    this._compareBindControls = fn;
+    this._rerender();
+  }
+
+  // Internal ref so triggerProcess() can call back into the React tree
+  private _triggerProcessRef: React.MutableRefObject<(() => void) | null> = { current: null };
 
   // ── Methods ───────────────────────────────────────────────────────────────
 
@@ -42,7 +76,7 @@ class SidekickManager extends HTMLElement {
 
   /** Re-run the transform compare render on the currently active file. */
   triggerProcess() {
-    if (this.appRef.current?.triggerProcess) this.appRef.current.triggerProcess();
+    if (this._triggerProcessRef.current) this._triggerProcessRef.current();
   }
 
   // ── Internal render helper ─────────────────────────────────────────────────
@@ -52,6 +86,7 @@ class SidekickManager extends HTMLElement {
 
     const hiddenCount = parseInt(this.getAttribute('hidden-files-count') || '0', 10) || 0;
     const hiddenMessage = this.getAttribute('hidden-files-message') || undefined;
+    const compareMode = (this.getAttribute('compare-mode') as 'two-file' | 'transform') || 'two-file';
 
     this.root.render(
       <React.StrictMode>
@@ -61,6 +96,12 @@ class SidekickManager extends HTMLElement {
           customSort={this._customSort ?? undefined}
           hiddenFilesCount={hiddenCount}
           hiddenFilesMessage={hiddenMessage}
+          compareMode={compareMode}
+          onCompareRender={this._onCompareRender ?? undefined}
+          onCompareInfo={this._onCompareInfo ?? undefined}
+          customControlsHtml={this._compareControls || undefined}
+          onBindCustomControls={this._compareBindControls ?? undefined}
+          triggerProcessRef={this._triggerProcessRef}
         />
       </React.StrictMode>
     );
@@ -71,7 +112,6 @@ class SidekickManager extends HTMLElement {
   connectedCallback() {
     const shadow = this.attachShadow({ mode: 'open' });
 
-    // Inject Tailwind explicitly into the Shadow boundary, preventing global CSS corruption!
     const style = document.createElement('style');
     style.textContent = tailwindCss;
     shadow.appendChild(style);
@@ -83,7 +123,6 @@ class SidekickManager extends HTMLElement {
 
     this.root = ReactDOM.createRoot(mountPoint);
 
-    // Standardize Native Custom Event Telemetry out to the Host Application
     this._telemetryHandler = (eventName: string, payload: any) => {
       this.dispatchEvent(new CustomEvent(eventName, { detail: payload, bubbles: true, composed: true }));
     };

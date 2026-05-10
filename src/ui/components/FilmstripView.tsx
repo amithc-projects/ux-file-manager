@@ -2,15 +2,18 @@
  * FilmstripView — Large viewer + scrolling thumbnail strip.
  *
  * Ported from pic-machina's MediaBrowser filmstrip mode.
- * Keeps the large viewer in sync with the thumbnail strip; supports
- * click, Shift+click, Ctrl/Cmd+click multi-selection and keyboard navigation.
+ * - Large viewer top: renders image/video/audio directly (no autoplay on video)
+ * - Horizontal strip bottom: thumbnails with video first-frame extraction
+ * - Selection: click, Shift+click, Ctrl/Cmd+click (delegated to App's handleItemClick)
+ * - Keyboard: Left/Right arrows navigate; Enter fires double-click
+ * - Scroll position persisted across re-renders
+ * - Tooltip on hover showing name/size/type
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { FileViewer } from './FileViewer';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
 
 interface FilmstripViewProps {
@@ -21,7 +24,103 @@ interface FilmstripViewProps {
   onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
 }
 
-// ── Thumbnail chip ────────────────────────────────────────────────────────────
+// ── File type helpers ─────────────────────────────────────────────────────────
+
+function getMediaType(name: string) {
+  if (/\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(name)) return 'image';
+  if (/\.(mp4|webm|mov|avi|mkv)$/i.test(name)) return 'video';
+  if (/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(name)) return 'audio';
+  return 'other';
+}
+
+function formatBytes(bytes: number) {
+  if (!bytes) return '';
+  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// ── Viewer area — renders the focused file ────────────────────────────────────
+
+function FilmstripViewer({ item }: { item: GridItem | null }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!item || item.type !== 'file') { setBlobUrl(null); return; }
+    let url: string | null = null;
+    let isActive = true;
+    item.pair.mainHandle.getFile().then((f) => {
+      if (!isActive) return;
+      url = URL.createObjectURL(f);
+      setBlobUrl(url);
+    }).catch(() => {});
+    return () => {
+      isActive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [item]);
+
+  if (!item) return null;
+
+  if (item.type === 'folder') {
+    return (
+      <div className="flex flex-col items-center gap-4 text-blue-400">
+        <Folder size={96} fill="currentColor" />
+        <span className="text-xl font-semibold">{item.name}</span>
+      </div>
+    );
+  }
+
+  const name = item.pair.id;
+  const type = getMediaType(name);
+
+  if (!blobUrl) {
+    return <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+  }
+
+  if (type === 'image') {
+    return (
+      <img
+        src={blobUrl}
+        alt={name}
+        className="max-w-full max-h-full object-contain"
+        style={{ display: 'block' }}
+      />
+    );
+  }
+
+  if (type === 'video') {
+    // controls but no autoplay — user must press play
+    return (
+      <video
+        key={blobUrl}
+        src={blobUrl}
+        controls
+        className="max-w-full max-h-full"
+        style={{ display: 'block' }}
+      />
+    );
+  }
+
+  if (type === 'audio') {
+    return (
+      <div className="flex flex-col items-center gap-6 text-purple-400">
+        <Music size={80} />
+        <p className="text-sm text-gray-300">{name}</p>
+        <audio key={blobUrl} src={blobUrl} controls />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 text-gray-500">
+      <FileIcon size={80} />
+      <p className="text-sm">{name}</p>
+    </div>
+  );
+}
+
+// ── Strip thumbnail chip ──────────────────────────────────────────────────────
 
 function StripThumb({
   item,
@@ -43,22 +142,30 @@ function StripThumb({
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
   const itemName = isFile ? pair!.id : item.name;
-  const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
-  const isVideo = isFile && /\.(mp4|webm|mov|avi|mkv)$/i.test(itemName);
-  const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
+  const type = isFile ? getMediaType(itemName) : 'folder';
+
   const thumbnailUrl = useThumbnails(pair?.mainHandle);
+
+  // Tooltip text
+  const tooltipLines: string[] = [itemName];
+  if (isFile && pair) {
+    if (pair.size) tooltipLines.push(`Size: ${formatBytes(pair.size)}`);
+    if (pair.lastModified) tooltipLines.push(`Modified: ${new Date(pair.lastModified).toLocaleString()}`);
+  }
+  const tooltipText = tooltipLines.join('\n');
 
   const renderThumb = () => {
     if (!isFile) return <Folder size={36} className="text-blue-500/80" fill="currentColor" />;
     if (thumbnailUrl) return <img src={thumbnailUrl} className="w-full h-full object-cover" alt={itemName} />;
-    if (isImage) return <ImageIcon size={28} className="text-gray-500" />;
-    if (isVideo) return <Film size={28} className="text-gray-500" />;
-    if (isAudio) return <Music size={28} className="text-purple-500" />;
+    if (type === 'image') return <ImageIcon size={28} className="text-gray-500" />;
+    if (type === 'video') return <Film size={28} className="text-gray-500" />;
+    if (type === 'audio') return <Music size={28} className="text-purple-500" />;
     return <FileIcon size={28} className="text-gray-500" />;
   };
 
   return (
     <div
+      title={tooltipText}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
@@ -75,6 +182,13 @@ function StripThumb({
       >
         {renderThumb()}
 
+        {/* Video play badge */}
+        {type === 'video' && (
+          <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-0.5 pointer-events-none">
+            <Play size={10} className="text-white" fill="white" />
+          </div>
+        )}
+
         {/* Selection badge */}
         {isSelected && (
           <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold shadow-md z-10 pointer-events-none">
@@ -86,7 +200,7 @@ function StripThumb({
       </div>
 
       {/* Label */}
-      <p className="text-[10px] text-center text-gray-300 truncate w-[100px]" title={itemName}>
+      <p className="text-[10px] text-center text-gray-300 truncate w-[100px]">
         {itemName}
       </p>
     </div>
@@ -104,54 +218,52 @@ export function FilmstripView({
 }: FilmstripViewProps) {
   const allItems = groups.flatMap((g) => g.items);
 
-  // Scroll persistence
+  // Scroll persistence — survives React re-renders via module-level ref pattern
   const stripRef = useRef<HTMLDivElement>(null);
   const scrollLeftRef = useRef<number>(0);
 
-  // Restore scroll on mount
   useEffect(() => {
     if (stripRef.current) stripRef.current.scrollLeft = scrollLeftRef.current;
   }, []);
 
-  // Save scroll on scroll
   const handleScroll = useCallback(() => {
     if (stripRef.current) scrollLeftRef.current = stripRef.current.scrollLeft;
   }, []);
 
-  // Resolve the "active" item (first selected, or first file)
+  // Resolve the focused item (first selected → first file → first item)
   const focusedId = selectedIdsArray.find(Boolean);
   const focusedItem =
     allItems.find((i) => (i.type === 'file' ? i.pair.id : i.name) === focusedId) ||
     allItems.find((i) => i.type === 'file') ||
-    allItems[0];
+    allItems[0] ||
+    null;
 
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!['ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) return;
 
-      const focusedId2 = focusedItem
+      const currentId = focusedItem
         ? focusedItem.type === 'file' ? focusedItem.pair.id : focusedItem.name
         : null;
-      const currentIdx = focusedId2
-        ? allItems.findIndex((i) => (i.type === 'file' ? i.pair.id : i.name) === focusedId2)
+      const currentIdx = currentId
+        ? allItems.findIndex((i) => (i.type === 'file' ? i.pair.id : i.name) === currentId)
         : -1;
 
-      let newIdx = currentIdx;
-      if (e.key === 'ArrowLeft') newIdx = Math.max(0, currentIdx - 1);
-      else if (e.key === 'ArrowRight') newIdx = Math.min(allItems.length - 1, currentIdx + 1);
-      else if (e.key === 'Enter' && focusedItem) {
-        onItemDoubleClick(focusedItem, new MouseEvent('dblclick') as unknown as React.MouseEvent);
+      if (e.key === 'Enter') {
+        if (focusedItem) onItemDoubleClick(focusedItem, new MouseEvent('dblclick') as unknown as React.MouseEvent);
         return;
       }
+
+      const newIdx = e.key === 'ArrowLeft'
+        ? Math.max(0, currentIdx - 1)
+        : Math.min(allItems.length - 1, currentIdx + 1);
 
       if (newIdx !== currentIdx && allItems[newIdx]) {
         const newItem = allItems[newIdx];
         const newId = newItem.type === 'file' ? newItem.pair.id : newItem.name;
         e.preventDefault();
         onItemClick(newId, new MouseEvent('click') as unknown as React.MouseEvent);
-
-        // Scroll the strip to keep the item visible
         setTimeout(() => {
           if (stripRef.current) {
             const el = stripRef.current.children[newIdx] as HTMLElement;
@@ -170,23 +282,12 @@ export function FilmstripView({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
 
-      {/* ── Viewer area ─────────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 bg-black flex items-center justify-center overflow-hidden relative">
-        {focusedItem ? (
-          focusedItem.type === 'folder' ? (
-            <div className="flex flex-col items-center gap-4 text-blue-400">
-              <Folder size={96} fill="currentColor" />
-              <span className="text-xl font-semibold">{focusedItem.name}</span>
-            </div>
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <FileViewer item={focusedItem} />
-            </div>
-          )
-        ) : null}
+      {/* ── Viewer ────────────────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 bg-black flex items-center justify-center overflow-hidden">
+        <FilmstripViewer item={focusedItem} />
       </div>
 
-      {/* ── Thumbnail strip ──────────────────────────────────────────────── */}
+      {/* ── Strip ─────────────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 148 }}>
         <div
           ref={stripRef}
