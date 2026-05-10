@@ -1,11 +1,13 @@
+var _a, _b;
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     server: {
-        port: process.env.PORT ? parseInt(process.env.PORT) : 5174,
+        port: ((_b = (_a = globalThis.process) === null || _a === void 0 ? void 0 : _a.env) === null || _b === void 0 ? void 0 : _b.PORT) ? parseInt(globalThis.process.env.PORT) : 5174,
         host: '0.0.0.0',
-        allowedHosts: 'all',
+        allowedHosts: true,
     },
     plugins: [
         react(),

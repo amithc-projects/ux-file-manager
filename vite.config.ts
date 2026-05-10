@@ -3,11 +3,12 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  server: {
-    port: process.env.PORT ? parseInt(process.env.PORT) : 5174,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  server: ({
+    port: (globalThis as any).process?.env?.PORT ? parseInt((globalThis as any).process.env.PORT) : 5174,
     host: '0.0.0.0',
-    allowedHosts: 'all',
-  },
+    allowedHosts: true,
+  } as any),
   plugins: [
     react(),
     VitePWA({

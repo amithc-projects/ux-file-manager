@@ -18,7 +18,7 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Cloud } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Cloud, Download } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -44,6 +44,15 @@ export interface AppProps {
   onBindCustomControls?: (container: HTMLDivElement) => void;
   triggerProcessRef?: React.MutableRefObject<(() => void) | null>;
   selectionActions?: SelectionAction[];
+  /**
+   * When true, ignore window.location.hash when computing the initial
+   * directory path. Required when the component is embedded in a host
+   * app (e.g. pic-machina) that uses the hash for its own routing —
+   * otherwise sidekick would treat the host's route name as a sub-folder
+   * deep-link, fail to find it, and then clear the hash (causing the
+   * host router to navigate away).
+   */
+  noHashRouting?: boolean;
 }
 
 export interface NavigateOptions {
@@ -58,7 +67,7 @@ export interface AppRef {
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [] }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -196,7 +205,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
          let finalTargetHandle = handle;
          let resolvedStack: FileSystemDirectoryHandle[] = [handle];
-         const rawHash = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
+         const rawHash = noHashRouting
+            ? ''
+            : window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
          if (rawHash) {
             const segments = rawHash.split('/').filter(Boolean);
             try {
@@ -821,6 +832,42 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                     if (selImages.length > 0) setSlideshowItems(selImages);
                   }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-sm font-medium transition-colors">
                     <Play size={14} /> Slideshow
+                  </button>
+                  <button onClick={async () => {
+                    const arr = (selectedIdsArray.filter(Boolean) as string[]);
+                    const selFiles = items.filter(i => i.type === 'file' && arr.includes(i.pair.id)) as Extract<GridItem, { type: 'file' }>[];
+                    if (selFiles.length === 0) return;
+                    try {
+                      if (selFiles.length === 1) {
+                        const file = await selFiles[0].pair.mainHandle.getFile();
+                        const url = URL.createObjectURL(file);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = file.name;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } else {
+                        const zip = new JSZip();
+                        for (const item of selFiles) {
+                          const f = await item.pair.mainHandle.getFile();
+                          zip.file(item.pair.id, f);
+                          if (item.pair.sidecarHandle) {
+                            const sc = await item.pair.sidecarHandle.getFile();
+                            zip.file(item.pair.sidecarHandle.name, sc);
+                          }
+                        }
+                        const blob = await zip.generateAsync({ type: 'blob' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = 'sidekick_download.zip';
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }
+                    } catch (err) {
+                      console.error('[sidekick] download failed:', err);
+                      if (onTelemetry) onTelemetry('sidekick:error', { code: 'DOWNLOAD_FAILED', message: (err as any)?.message });
+                    }
+                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
+                    <Download size={14} /> Download
                   </button>
                   {allSelectionActions.map((action, i) => (
                     <button
