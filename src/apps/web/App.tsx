@@ -79,6 +79,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
   const { selectedIdsArray, setSelectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
 
+  // Track last-clicked item for Shift+Click range selection
+  const lastClickedIdRef = React.useRef<string | null>(null);
+
   useEffect(() => {
      if (onTelemetry) onTelemetry('sidekick:ready', { version: '1.0' });
      StorageService.getWorkspaces().then(setRecentWorkspaces);
@@ -230,10 +233,34 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       e.stopPropagation();
       closeContext();
       if (id === '..') return;
-      toggleSelection(id, e.shiftKey, e.metaKey || e.ctrlKey, e.altKey, () => {
-         return new Promise<boolean>((resolve) => {
-             setGapPrompt({ id, resolve });
-         });
+
+      // Shift+Click: extend selection range from last clicked item to this one
+      if (e.shiftKey && lastClickedIdRef.current) {
+        const allItems = processedGroups.flatMap(g => g.items);
+        const flatIds = allItems.map(i => i.type === 'file' ? i.pair.id : i.name);
+        const fromIdx = flatIds.indexOf(lastClickedIdRef.current);
+        const toIdx = flatIds.indexOf(id);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          const start = Math.min(fromIdx, toIdx);
+          const end = Math.max(fromIdx, toIdx);
+          setSelectedIdsArray(flatIds.slice(start, end + 1));
+          return;
+        }
+      }
+
+      // Ctrl/Cmd+Click: add/remove individual item without clearing others
+      if (e.metaKey || e.ctrlKey) {
+        lastClickedIdRef.current = id;
+        toggleSelection(id, false, true, e.altKey, () => {
+          return new Promise<boolean>((resolve) => { setGapPrompt({ id, resolve }); });
+        });
+        return;
+      }
+
+      // Plain click: select only this item
+      lastClickedIdRef.current = id;
+      toggleSelection(id, false, false, e.altKey, () => {
+        return new Promise<boolean>((resolve) => { setGapPrompt({ id, resolve }); });
       });
   };
 
