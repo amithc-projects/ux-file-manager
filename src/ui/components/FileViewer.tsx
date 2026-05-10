@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import ReactMarkdown from 'react-markdown';
 import { GridItem } from '../../core/models/FilePair';
-import { FileIcon, ZoomIn, ZoomOut, Maximize, MoveHorizontal, Search } from 'lucide-react';
+import { FileIcon, ZoomIn, ZoomOut, Maximize, MoveHorizontal, Search, Music } from 'lucide-react';
 import { VideoEditor } from './VideoEditor';
 
 function JsonNode({ nodeKey, value, isLast }: { nodeKey?: string, value: any, isLast: boolean }) {
@@ -89,7 +89,7 @@ function ZipViewer({ file }: { file: File }) {
     );
 }
 
-function MediaViewer({ file, type }: { file: File, type: 'image' | 'video' | 'pdf' }) {
+function MediaViewer({ file, type }: { file: File, type: 'image' | 'video' | 'pdf' | 'audio' }) {
     const [url, setUrl] = useState('');
     useEffect(() => {
         const u = URL.createObjectURL(file);
@@ -105,6 +105,21 @@ function MediaViewer({ file, type }: { file: File, type: 'image' | 'video' | 'pd
 
     if (type === 'video') {
         return <VideoEditor file={file} originalName={(file as any).name || 'video'} onSaveNewFile={(file as any).onSaveNewFile} />;
+    }
+
+    if (type === 'audio') {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-6 p-8 bg-gradient-to-b from-dark-900 to-dark-950">
+                <div className="w-24 h-24 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center shadow-2xl shadow-purple-900/40">
+                    <Music size={48} className="text-purple-400" />
+                </div>
+                <div className="text-center max-w-md">
+                    <div className="text-lg font-semibold text-white truncate">{(file as any).name || 'audio'}</div>
+                    <div className="text-xs text-gray-500 font-mono mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                </div>
+                <audio src={url} controls autoPlay className="w-full max-w-xl" />
+            </div>
+        );
     }
 
     return (
@@ -228,7 +243,8 @@ export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem,
    if (forceText) return <CodeViewer text={textData} item={item} />;
 
    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext);
-   const isVideo = ['mp4', 'webm', 'mov', 'ogg'].includes(ext);
+   const isVideo = ['mp4', 'webm', 'mov'].includes(ext);
+   const isAudio = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(ext);
    const isPDF = ['pdf'].includes(ext);
    const isZip = ['zip'].includes(ext);
    const isJson = ['json'].includes(ext);
@@ -241,6 +257,7 @@ export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem,
        (fileObj as any).onSaveNewFile = onSaveNewFile;
        return <MediaViewer file={fileObj} type="video" />;
    }
+   if (isAudio) return <MediaViewer file={fileObj} type="audio" />;
    if (isPDF) return <MediaViewer file={fileObj} type="pdf" />;
    if (isZip) return <ZipViewer file={fileObj} />;
    if (isCode) return <CodeViewer text={textData} item={item} />;

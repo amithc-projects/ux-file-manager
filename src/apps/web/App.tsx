@@ -7,6 +7,8 @@ import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { FilmstripView } from '../../ui/components/FilmstripView';
 import { TransformCompareView, CompareRenderResult } from '../../ui/components/TransformCompareView';
 import { HiddenFilesWarning } from '../../ui/components/HiddenFilesWarning';
+import { SettingsModal, loadStcConfig, StcConfig } from '../../ui/components/SettingsModal';
+import { SendToCloudModal } from '../../ui/components/SendToCloudModal';
 import { TypeFilters, TypeFilter, getTypeFilter } from '../../ui/components/TypeFilters';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
 import { PreviewModal } from '../../ui/components/PreviewModal';
@@ -16,13 +18,19 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Cloud, Download } from 'lucide-react';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
 type ActionType = 'copy' | 'cut' | null;
 
 interface ContextMenuState { x: number; y: number; item: GridItem; }
+
+export interface SelectionAction {
+  label: string;
+  icon?: string;          // emoji / text icon shown before the label
+  onClick: (selectedIds: string[]) => void;
+}
 
 export interface AppProps {
   onTelemetry?: (event: string, payload: any) => void;
@@ -35,6 +43,16 @@ export interface AppProps {
   customControlsHtml?: string;
   onBindCustomControls?: (container: HTMLDivElement) => void;
   triggerProcessRef?: React.MutableRefObject<(() => void) | null>;
+  selectionActions?: SelectionAction[];
+  /**
+   * When true, ignore window.location.hash when computing the initial
+   * directory path. Required when the component is embedded in a host
+   * app (e.g. pic-machina) that uses the hash for its own routing —
+   * otherwise sidekick would treat the host's route name as a sub-folder
+   * deep-link, fail to find it, and then clear the hash (causing the
+   * host router to navigate away).
+   */
+  noHashRouting?: boolean;
 }
 
 export interface NavigateOptions {
@@ -49,7 +67,7 @@ export interface AppRef {
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,6 +103,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const [slideshowItems, setSlideshowItems] = useState<GridItem[] | null>(null);
   const [collectionBasket, setCollectionBasket] = useState<GridItem[]>([]);
   const [childFolderMenuOpen, setChildFolderMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [stcConfig, setStcConfig] = useState<StcConfig | null>(() => loadStcConfig());
+  const [stcFiles, setStcFiles] = useState<File[]>([]);
+  const [stcModalOpen, setStcModalOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const { selectedIdsArray, setSelectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
@@ -183,7 +205,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
          let finalTargetHandle = handle;
          let resolvedStack: FileSystemDirectoryHandle[] = [handle];
-         const rawHash = window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
+         const rawHash = noHashRouting
+            ? ''
+            : window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
          if (rawHash) {
             const segments = rawHash.split('/').filter(Boolean);
             try {
@@ -211,6 +235,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
       await scanAndSetDirectory(handle, true);
     } catch (err: any) {
+      // AbortError means the user cancelled the picker — not an error worth reporting
+      if (err?.name === 'AbortError') return;
       if (onTelemetry) onTelemetry('sidekick:error', { code: 'FSA_DENIED', message: err?.message || 'Access Denied' });
     }
   };
@@ -281,6 +307,25 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         return new Promise<boolean>((resolve) => { setGapPrompt({ id, resolve }); });
       });
   };
+
+  // Build the Send to Cloud selection action when config is present
+  const handleSendToCloud = useCallback(async (selectedIds: string[]) => {
+    if (!stcConfig) { setSettingsOpen(true); return; }
+    const fileItems = items.filter(i => i.type === 'file' && selectedIds.includes(i.pair.id));
+    const files: File[] = [];
+    for (const item of fileItems) {
+      if (item.type === 'file') files.push(await item.pair.mainHandle.getFile());
+    }
+    if (files.length === 0) return;
+    setStcFiles(files);
+    setStcModalOpen(true);
+  }, [stcConfig, items]);
+
+  const builtInSelectionActions: SelectionAction[] = stcConfig
+    ? [{ label: 'Send to Cloud', icon: '☁', onClick: (ids) => handleSendToCloud(ids) }]
+    : [];
+
+  const allSelectionActions = [...builtInSelectionActions, ...selectionActions];
 
   const tooltipTimeout = React.useRef<number | null>(null);
   const tooltipDimCache = React.useRef<Record<string, string>>({});
@@ -726,6 +771,15 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             </button>
           )}
 
+          {/* Settings button */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title="Settings"
+            className={`p-1.5 rounded-lg transition-colors shrink-0 ${stcConfig ? 'text-blue-400 hover:text-blue-300 hover:bg-dark-700' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
+          >
+            {stcConfig ? <Cloud size={15} /> : <Settings size={15} />}
+          </button>
+
           {/* Filter input */}
           <div className="relative shrink-0 w-36 sm:w-48">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -779,6 +833,52 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                   }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-sm font-medium transition-colors">
                     <Play size={14} /> Slideshow
                   </button>
+                  <button onClick={async () => {
+                    const arr = (selectedIdsArray.filter(Boolean) as string[]);
+                    const selFiles = items.filter(i => i.type === 'file' && arr.includes(i.pair.id)) as Extract<GridItem, { type: 'file' }>[];
+                    if (selFiles.length === 0) return;
+                    try {
+                      if (selFiles.length === 1) {
+                        const file = await selFiles[0].pair.mainHandle.getFile();
+                        const url = URL.createObjectURL(file);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = file.name;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } else {
+                        const zip = new JSZip();
+                        for (const item of selFiles) {
+                          const f = await item.pair.mainHandle.getFile();
+                          zip.file(item.pair.id, f);
+                          if (item.pair.sidecarHandle) {
+                            const sc = await item.pair.sidecarHandle.getFile();
+                            zip.file(item.pair.sidecarHandle.name, sc);
+                          }
+                        }
+                        const blob = await zip.generateAsync({ type: 'blob' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = 'sidekick_download.zip';
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }
+                    } catch (err) {
+                      console.error('[sidekick] download failed:', err);
+                      if (onTelemetry) onTelemetry('sidekick:error', { code: 'DOWNLOAD_FAILED', message: (err as any)?.message });
+                    }
+                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
+                    <Download size={14} /> Download
+                  </button>
+                  {allSelectionActions.map((action, i) => (
+                    <button
+                      key={i}
+                      onClick={() => action.onClick(selectedIdsArray.filter(Boolean) as string[])}
+                      className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-purple-500/20 hover:text-purple-400 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {action.icon && <span>{action.icon}</span>}
+                      {action.label}
+                    </button>
+                  ))}
                   <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-sm font-medium transition-colors">
                     <Trash2 size={14} /> Delete
                   </button>
@@ -1037,6 +1137,21 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       )}
 
       {slideshowItems && <SlideshowModal items={slideshowItems} onClose={() => setSlideshowItems(null)} />}
+
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSave={(cfg) => setStcConfig(cfg)}
+      />
+
+      {stcModalOpen && stcConfig && (
+        <SendToCloudModal
+          isOpen={stcModalOpen}
+          files={stcFiles}
+          config={stcConfig}
+          onClose={() => { setStcModalOpen(false); setStcFiles([]); }}
+        />
+      )}
     </div>
   );
 });

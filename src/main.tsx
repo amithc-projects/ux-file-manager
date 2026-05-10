@@ -10,7 +10,7 @@ class SidekickManager extends HTMLElement {
 
   // ── Observed HTML attributes ───────────────────────────────────────────────
   static get observedAttributes() {
-    return ['hidden-files-count', 'hidden-files-message', 'compare-mode'];
+    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing'];
   }
 
   attributeChangedCallback() {
@@ -61,6 +61,14 @@ class SidekickManager extends HTMLElement {
     this._rerender();
   }
 
+  /** Custom buttons shown in the selection action bar. Each: { label, icon?, onClick(selectedIds) } */
+  private _selectionActions: any[] = [];
+  get selectionActions() { return this._selectionActions; }
+  set selectionActions(actions: any[]) {
+    this._selectionActions = actions ?? [];
+    this._rerender();
+  }
+
   // Internal ref so triggerProcess() can call back into the React tree
   private _triggerProcessRef: React.MutableRefObject<(() => void) | null> = { current: null };
 
@@ -87,6 +95,7 @@ class SidekickManager extends HTMLElement {
     const hiddenCount = parseInt(this.getAttribute('hidden-files-count') || '0', 10) || 0;
     const hiddenMessage = this.getAttribute('hidden-files-message') || undefined;
     const compareMode = (this.getAttribute('compare-mode') as 'two-file' | 'transform') || 'two-file';
+    const noHashRouting = this.hasAttribute('no-hash-routing');
 
     this.root.render(
       <React.StrictMode>
@@ -102,6 +111,8 @@ class SidekickManager extends HTMLElement {
           customControlsHtml={this._compareControls || undefined}
           onBindCustomControls={this._compareBindControls ?? undefined}
           triggerProcessRef={this._triggerProcessRef}
+          selectionActions={this._selectionActions}
+          noHashRouting={noHashRouting}
         />
       </React.StrictMode>
     );

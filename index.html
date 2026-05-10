@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#09090b" />
+    <link rel="icon" type="image/svg+xml" href="/pwa-icon.svg" />
+    <link rel="apple-touch-icon" href="/pwa-icon.svg" />
     <title>Sidekick File Manager</title>
   </head>
   <body>
@@ -18,6 +21,8 @@
        manager.addEventListener('sidekick:workspace', (e) => console.log('📁 Root Target Swapped:', e.detail));
     </script>
 
+    <!-- Send to Cloud web component (loaded before the app so the custom element is defined) -->
+    <script src="/send-to-cloud.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

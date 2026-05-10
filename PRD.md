@@ -20,7 +20,8 @@
   - Code Viewer: Casts `JS`, `TS`, `CSS`, and `TXT` neatly into syntax-blocked outputs.
   - JSON Viewer: Projects deep nested sidecar layers natively in a custom UI collapsing tree.
   - Markdown Viewers: Evaluates structural code mirroring heavily optimized dark-mode standard styling logic.
-  - Media & PDFs: Native visual mounts intercept object URLs seamlessly.
+  - Media & PDFs: Native visual mounts intercept object URLs seamlessly. Includes a full-screen slideshow engine with automated playback.
+  - Video Trimming & Splitting Engine: Utilizes a `mediabunny` WASM layer for zero-trip browser-based video editing, supporting timeline scrubbing, single/batch clip extraction, and interval auto-splitting.
   - HTML Sandbox: Uses precise `<iframe srcDoc>` boundaries to natively project source markup alongside evaluated sandboxed CSS states simultaneously.
   - ZIP Explorers: Mounts JSZip streams visually iterating archive arrays directly.
 
