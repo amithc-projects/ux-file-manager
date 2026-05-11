@@ -53,6 +53,9 @@ export interface AppProps {
    * host router to navigate away).
    */
   noHashRouting?: boolean;
+  /** When true, hides the right-side inspector panel (Props/Marks/Collection tabs).
+   *  Use this when the host app provides its own metadata panel. */
+  hideInspector?: boolean;
 }
 
 export interface NavigateOptions {
@@ -68,7 +71,7 @@ export interface AppRef {
   getCurrentDirectoryHandle: () => FileSystemDirectoryHandle | null;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,7 +105,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const [_clipboardAction, _setClipboardAction] = useState<ActionType>(null);
   
   const [slideshowItems, setSlideshowItems] = useState<GridItem[] | null>(null);
-  const [collectionBasket, setCollectionBasket] = useState<GridItem[]>([]);
+  const [collection, setCollection] = useState<GridItem[]>([]);
+  const [collectionViewOpen, setCollectionViewOpen] = useState(false); // show collection in main window
+  const [collectionPanelOpen, setCollectionPanelOpen] = useState(false); // top-bar dropdown
+  const [bookmarksPanelOpen, setBookmarksPanelOpen] = useState(false); // top-bar dropdown
   const [childFolderMenuOpen, setChildFolderMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stcConfig, setStcConfig] = useState<StcConfig | null>(() => loadStcConfig());
@@ -197,6 +203,89 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     }
   }, [currentDir, loadHandleContentsToUI]);
 
+  // Background thumbnail persistence — extracts first-frame from videos that don't yet have a .thumbnail.jpg sidecar
+  // and writes it to the directory. Runs whenever currentDir changes (new folder opened).
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
+
+  useEffect(() => {
+    if (!currentDir) return;
+    const dirHandle = currentDir; // capture for async use
+
+    const THUMB_MAX = 320; // max dimension for saved thumbnails
+
+    function captureFrame(video: HTMLVideoElement): Promise<Blob | null> {
+      return new Promise((resolve) => {
+        // Use rAF to ensure the browser has painted the decoded frame
+        requestAnimationFrame(() => {
+          const w = video.videoWidth || THUMB_MAX;
+          const h = video.videoHeight || Math.round(THUMB_MAX * 9 / 16);
+          const scale = Math.min(1, THUMB_MAX / Math.max(w, h));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(resolve, 'image/jpeg', 0.8);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    function extractFirstFrame(file: File): Promise<Blob | null> {
+      return new Promise((resolve) => {
+        const videoObjectUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'auto';
+        video.muted = true;
+        video.playsInline = true;
+        const cleanup = async (capture: boolean) => {
+          const blob = capture ? await captureFrame(video) : null;
+          URL.revokeObjectURL(videoObjectUrl);
+          video.src = '';
+          resolve(blob);
+        };
+        video.addEventListener('error', () => cleanup(false), { once: true });
+        video.addEventListener('loadeddata', () => {
+          // loadeddata fires when the first frame is available — capture immediately
+          cleanup(true);
+        }, { once: true });
+        video.src = videoObjectUrl;
+        video.load();
+      });
+    }
+
+    (async () => {
+      const videoItems = itemsRef.current.filter(
+        (item): item is Extract<typeof item, { type: 'file' }> =>
+          item.type === 'file' &&
+          /\.(mp4|webm|mov|avi|mkv)$/i.test(item.pair.id) &&
+          !item.pair.thumbnailHandle
+      );
+      console.log(`[thumbnails] ${videoItems.length} video(s) need thumbnails in ${dirHandle.name}`);
+      for (const item of videoItems) {
+        const pair = item.pair;
+        try {
+          const file = await pair.mainHandle.getFile();
+          const blob = await extractFirstFrame(file);
+          if (!blob) { console.warn('[thumbnails] no blob for', pair.id); continue; }
+          const thumbName = `.${pair.id}.thumbnail.jpg`;
+          const thumbHandle = await dirHandle.getFileHandle(thumbName, { create: true });
+          const writable = await (thumbHandle as any).createWritable();
+          await writable.write(blob);
+          await writable.close();
+          pair.thumbnailHandle = thumbHandle;
+          console.log('[thumbnails] saved', thumbName);
+        } catch (e) {
+          console.warn('[thumbnails] failed for', pair.id, e);
+        }
+      }
+    })();
+  }, [currentDir]);
+
   const scanAndSetDirectory = useCallback(async (handle: FileSystemDirectoryHandle, isNewRoot: boolean = false) => {
     try {
       setLoading(true);
@@ -261,8 +350,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     
     setLoading(true);
     loadHandleContentsToUI(parentHandle).finally(() => setLoading(false));
-    window.location.hash = '';
-  }, [pathStack, loadHandleContentsToUI]);
+    if (!noHashRouting) window.location.hash = '';
+  }, [pathStack, loadHandleContentsToUI, noHashRouting]);
 
   const handleItemDoubleClick = useCallback((item: GridItem, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -486,10 +575,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
   const handleCollectionBatch = async (action: string) => {
       if (action === 'clear') {
-         setCollectionBasket([]);
+         setCollection([]);
       } else if (action === 'zip') {
          const zip = new JSZip();
-         for (const item of collectionBasket) {
+         for (const item of collection) {
             if (item.type === 'file') {
                const rawFile = await item.pair.mainHandle.getFile();
                zip.file(item.pair.id, rawFile);
@@ -512,7 +601,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       } else if (action === 'copy' || action === 'move') {
          if (!currentDir) return;
          setLoading(true);
-         for (const item of collectionBasket) {
+         for (const item of collection) {
              if (item.type === 'file') {
                 const sourceFile = await item.pair.mainHandle.getFile();
                 const targetFileHandle = await currentDir.getFileHandle(item.pair.id, { create: true });
@@ -785,6 +874,111 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             {stcConfig ? <Cloud size={15} /> : <Settings size={15} />}
           </button>
 
+          {/* Bookmarks top-bar button + dropdown */}
+          <div className="relative shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setBookmarksPanelOpen(o => !o); setCollectionPanelOpen(false); }}
+              title="Bookmarks"
+              className={`p-1.5 rounded-lg transition-colors ${bookmarksPanelOpen ? 'bg-dark-700 text-yellow-400' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
+            >
+              <Bookmark size={15} />
+            </button>
+            {bookmarksPanelOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setBookmarksPanelOpen(false)} />
+                <div className="absolute top-full right-0 mt-1 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-xl z-50 overflow-hidden py-1 max-h-80 overflow-y-auto">
+                  <div className="px-3 py-2 border-b border-dark-700 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-yellow-400">Bookmarks</span>
+                  </div>
+                  {bookmarks.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-gray-500">
+                      <Bookmark size={24} className="mx-auto mb-2 opacity-30" />
+                      <p>No bookmarks yet.</p>
+                      <p className="mt-1 text-yellow-500/70">Right-click a folder to bookmark it</p>
+                    </div>
+                  ) : bookmarks.map(bm => (
+                    <div key={bm.id} className="flex items-center justify-between px-3 py-2 text-sm group cursor-pointer hover:bg-dark-700 transition-colors"
+                      onClick={() => { handleOpenBookmark(bm); setBookmarksPanelOpen(false); }}>
+                      <div className="flex items-center gap-2 truncate text-gray-300">
+                        <FolderOpen size={14} className="text-yellow-500 shrink-0" />
+                        <span className="truncate">{bm.name}</span>
+                      </div>
+                      <button onClick={async (e) => { e.stopPropagation(); const bks = await StorageService.removeBookmark(bm.id); setBookmarks(bks); }}
+                        className="text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1 shrink-0">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Collection top-bar button + dropdown */}
+          <div className="relative shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setCollectionPanelOpen(o => !o); setBookmarksPanelOpen(false); }}
+              title="Collection"
+              className={`relative p-1.5 rounded-lg transition-colors ${collectionPanelOpen || collectionViewOpen ? 'bg-dark-700 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
+            >
+              <BoxSelect size={15} />
+              {collection.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white min-w-[14px] h-3.5 rounded-full text-[9px] flex items-center justify-center px-0.5 font-bold">
+                  {collection.length}
+                </span>
+              )}
+            </button>
+            {collectionPanelOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setCollectionPanelOpen(false)} />
+                <div className="absolute top-full right-0 mt-1 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
+                  <div className="px-3 py-2 border-b border-dark-700 flex items-center justify-between shrink-0">
+                    <span className="text-xs font-semibold text-blue-400">{collection.length} item{collection.length !== 1 ? 's' : ''} in Collection</span>
+                    {collection.length > 0 && (
+                      <button onClick={() => { setCollection([]); setCollectionViewOpen(false); }} className="text-xs text-red-400 hover:text-red-300 transition-colors">Clear</button>
+                    )}
+                  </div>
+                  {collection.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-gray-500">
+                      <BoxSelect size={24} className="mx-auto mb-2 opacity-30" />
+                      <p>Collection is empty.</p>
+                      <p className="mt-1 text-gray-600">Right-click items to add them</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 overflow-y-auto py-1">
+                        {collection.map((i, idx) => {
+                          const id = i.type === 'file' ? i.pair.id : i.name;
+                          return (
+                            <div key={id + idx} className="flex items-center justify-between px-3 py-1.5 text-xs group">
+                              <span className="truncate text-gray-300 flex-1 min-w-0">{id}</span>
+                              <button onClick={() => setCollection(prev => prev.filter((_, j) => j !== idx))} className="text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0 ml-2">
+                                <X size={12} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="p-2 border-t border-dark-700 bg-dark-900/50 shrink-0 space-y-1.5">
+                        <button
+                          onClick={() => { setCollectionViewOpen(o => !o); setCollectionPanelOpen(false); }}
+                          className={`w-full py-1.5 rounded text-xs font-medium transition-colors ${collectionViewOpen ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-dark-700 hover:bg-dark-600 text-gray-200'}`}
+                        >
+                          {collectionViewOpen ? 'Close Collection View' : 'View Collection'}
+                        </button>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button onClick={() => handleCollectionBatch('zip')} className="py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs text-white font-medium">ZIP</button>
+                          <button onClick={() => handleCollectionBatch('copy')} className="py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white font-medium">Copy here</button>
+                          <button onClick={() => handleCollectionBatch('move')} className="py-1.5 bg-dark-600 hover:bg-dark-500 rounded text-xs text-white font-medium col-span-2">Move here</button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Filter input */}
           <div className="relative shrink-0 w-36 sm:w-48">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -951,6 +1145,18 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
         <main className="flex-1 flex flex-col bg-dark-900 relative overflow-hidden w-full h-full">
           <HiddenFilesWarning count={hiddenFilesCount} message={hiddenFilesMessage} />
+
+          {/* Collection view banner */}
+          {collectionViewOpen && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-900/40 border-b border-blue-500/30 shrink-0 text-sm">
+              <BoxSelect size={14} className="text-blue-400 shrink-0" />
+              <span className="text-blue-300 font-medium">Collection</span>
+              <span className="text-blue-400/60">— virtual view, not a folder on disk</span>
+              <span className="ml-auto text-blue-400 font-semibold">{collection.length} item{collection.length !== 1 ? 's' : ''}</span>
+              <button onClick={() => setCollectionViewOpen(false)} className="ml-2 text-blue-400/60 hover:text-blue-200 transition-colors"><X size={14} /></button>
+            </div>
+          )}
+
           {loading ? (
              <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 backdrop-blur-sm">
                 <div className="flex flex-col items-center gap-4">
@@ -958,6 +1164,21 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                   <span className="text-sm font-medium text-blue-400">Processing...</span>
                 </div>
              </div>
+          ) : collectionViewOpen ? (
+            <FileGrid
+              groups={[{ groupName: '', items: collection }]}
+              selectedIdsArray={selectedIdsArray}
+              viewMode={viewMode === 'filmstrip' ? 'grid' : viewMode}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onItemContextMenu={(item, e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setContextMenu({ x: e.pageX, y: e.pageY, item });
+              }}
+              onItemHover={handleItemHover}
+              onItemLeave={handleItemLeave}
+            />
           ) : pathStack.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 max-w-xl text-center m-auto h-full w-full">
               <FolderOpen size={64} className="mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
@@ -1009,7 +1230,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               }}
             />
           ) : (
-            <FileGrid 
+            <FileGrid
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
               viewMode={viewMode}
@@ -1026,16 +1247,12 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           )}
         </main>
 
-        <InspectorPanel 
-           isOpen={true} 
-           selectedItem={selectedItem} 
-           collection={collectionBasket} 
-           bookmarks={bookmarks}
-           onRemoveFromCollection={(id) => setCollectionBasket(prev => prev.filter(i => (i.type === 'file' ? i.pair.id : i.name) !== id))}
-           onCollectionBatchAction={handleCollectionBatch}
-           onRemoveBookmark={async (id) => { const bk = await StorageService.removeBookmark(id); setBookmarks(bk); }}
-           onOpenBookmark={handleOpenBookmark}
-        />
+        {!hideInspector && (
+          <InspectorPanel
+             isOpen={true}
+             selectedItem={selectedItem}
+          />
+        )}
       </div>
 
       {gapPrompt && (
@@ -1075,7 +1292,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                   <Bookmark size={14}/> Bookmark Folder
                </button>
             )}
-            <button onClick={() => { setCollectionBasket(prev => { if (!prev.find(i => i === contextMenu.item)) return [...prev, contextMenu.item]; return prev; }); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><BoxSelect size={14}/> Add to Collection</button>
+            <button onClick={() => { setCollection(prev => { if (!prev.find(i => i === contextMenu.item)) return [...prev, contextMenu.item]; return prev; }); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><BoxSelect size={14}/> Add to Collection</button>
             {contextMenu.item.type === 'file' && (
                <button onClick={() => { handleCopyContents(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><ClipboardPaste size={14}/> Copy File Contents</button>
             )}

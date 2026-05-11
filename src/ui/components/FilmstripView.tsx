@@ -144,7 +144,7 @@ function StripThumb({
   const itemName = isFile ? pair!.id : item.name;
   const type = isFile ? getMediaType(itemName) : 'folder';
 
-  const thumbnailUrl = useThumbnails(pair?.mainHandle);
+  const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
 
   // Tooltip text
   const tooltipLines: string[] = [itemName];

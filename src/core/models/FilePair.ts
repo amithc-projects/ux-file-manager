@@ -2,6 +2,7 @@ export interface FilePair {
   id: string; // usually the path or main file name
   mainHandle: FileSystemFileHandle;
   sidecarHandle?: FileSystemFileHandle;
+  thumbnailHandle?: FileSystemFileHandle; // persisted .{name}.thumbnail.jpg
   
   // Optional metadata loaded asynchronously
   metadata?: Record<string, unknown>;

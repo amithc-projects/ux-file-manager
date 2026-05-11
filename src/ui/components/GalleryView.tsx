@@ -15,9 +15,9 @@ interface GalleryViewProps {
 import { FileViewer } from './FileViewer';
 
 // Minimal Chip for Horizontal Strip
-function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected, onClick, onDoubleClick, onContextMenu }: { 
+function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected, onClick, onDoubleClick, onContextMenu }: {
     item: GridItem, isSelected: boolean, selectionOrderIndex: number | null, totalSelected: number,
-    onClick: (e: React.MouseEvent) => void, onDoubleClick: (e: React.MouseEvent) => void, onContextMenu: (e: React.MouseEvent) => void 
+    onClick: (e: React.MouseEvent) => void, onDoubleClick: (e: React.MouseEvent) => void, onContextMenu: (e: React.MouseEvent) => void
 }) {
     const isFile = item.type === 'file';
     const pair = isFile ? item.pair : undefined;
@@ -26,7 +26,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
     const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
     const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
     const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
-    const thumbnailUrl = useThumbnails(pair?.mainHandle);
+    const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
 
     const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -136,8 +136,8 @@ export function GalleryView({ groups, selectedIdsArray, onItemClick, onItemDoubl
                         const isSelected = selectedIdsArray.includes(id);
                         const selIndex = selectedIdsArray.indexOf(id);
                         return (
-                            <GalleryThumbnail 
-                               key={id} item={item} 
+                            <GalleryThumbnail
+                               key={id} item={item}
                                isSelected={isSelected}
                                selectionOrderIndex={selIndex !== -1 ? selIndex + 1 : null}
                                totalSelected={selectedIdsArray.filter(Boolean).length}

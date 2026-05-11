@@ -23,7 +23,7 @@ interface FileGridItemProps {
 function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, viewMode, onClick, onDoubleClick, onContextMenu, onItemHover, onItemLeave }: FileGridItemProps) {
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
-  
+
   const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSingleClick = (e: React.MouseEvent) => {
@@ -41,7 +41,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
      onDoubleClick(e);
   };
   
-  const thumbnailUrl = useThumbnails(pair?.mainHandle);
+  const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
   
   const itemName = isFile ? pair!.id : item.name;
   const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
@@ -182,13 +182,13 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onIt
           {items.map(item => {
             const id = item.type === 'file' ? item.pair.id : item.name;
             return (
-              <FileGridItem 
-                key={id} item={item} 
-                isSelected={getSelectionOrderIndex(id) !== null} 
+              <FileGridItem
+                key={id} item={item}
+                isSelected={getSelectionOrderIndex(id) !== null}
                 selectionOrderIndex={getSelectionOrderIndex(id)}
                 totalSelected={totalSelected}
                 viewMode={viewMode}
-                onClick={(e) => onItemClick(id, e)} 
+                onClick={(e) => onItemClick(id, e)}
                 onDoubleClick={(e) => onItemDoubleClick(item, e)}
                 onContextMenu={(e) => onItemContextMenu(item, e)}
                 onItemHover={onItemHover}

@@ -19,13 +19,19 @@ export class ScannerService {
 
     const pairsMap = new Map<string, FilePair>();
     const sidecarsMap = new Map<string, FileSystemFileHandle>();
+    const thumbnailsMap = new Map<string, FileSystemFileHandle>();
     const sidecarRegex = /^\.(?:meta_)?(.+)$/;
+    const thumbnailRegex = /^\.(.+)\.thumbnail\.jpg$/i;
 
     for (const file of allFiles) {
+      const thumbMatch = file.name.match(thumbnailRegex);
+      if (thumbMatch) {
+        thumbnailsMap.set(thumbMatch[1], file);
+        continue;
+      }
       const match = file.name.match(sidecarRegex);
       if (match) {
-        const mainName = match[1];
-        sidecarsMap.set(mainName, file);
+        sidecarsMap.set(match[1], file);
       } else {
         pairsMap.set(file.name, {
           id: file.name,
@@ -39,6 +45,11 @@ export class ScannerService {
     for (const [mainName, sidecarHandle] of sidecarsMap.entries()) {
       const pair = pairsMap.get(mainName);
       if (pair) pair.sidecarHandle = sidecarHandle;
+    }
+
+    for (const [mainName, thumbHandle] of thumbnailsMap.entries()) {
+      const pair = pairsMap.get(mainName);
+      if (pair) pair.thumbnailHandle = thumbHandle;
     }
 
     const pairs = Array.from(pairsMap.values());
