@@ -7,7 +7,6 @@ import { useThumbnails } from '../hooks/useThumbnails';
 interface GalleryViewProps {
   groups: GroupedItems[];
   selectedIdsArray: (string | null)[];
-  dirHandle?: FileSystemDirectoryHandle;
   onItemClick: (id: string, e: React.MouseEvent) => void;
   onItemDoubleClick: (item: GridItem, e: React.MouseEvent) => void;
   onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
@@ -16,9 +15,8 @@ interface GalleryViewProps {
 import { FileViewer } from './FileViewer';
 
 // Minimal Chip for Horizontal Strip
-function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected, dirHandle, onClick, onDoubleClick, onContextMenu }: {
+function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected, onClick, onDoubleClick, onContextMenu }: {
     item: GridItem, isSelected: boolean, selectionOrderIndex: number | null, totalSelected: number,
-    dirHandle?: FileSystemDirectoryHandle,
     onClick: (e: React.MouseEvent) => void, onDoubleClick: (e: React.MouseEvent) => void, onContextMenu: (e: React.MouseEvent) => void
 }) {
     const isFile = item.type === 'file';
@@ -28,7 +26,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
     const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
     const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
     const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
-    const thumbnailUrl = useThumbnails(pair?.mainHandle, dirHandle);
+    const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
 
     const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,7 +82,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
 }
 
 // Master Stage Logic
-export function GalleryView({ groups, selectedIdsArray, dirHandle, onItemClick, onItemDoubleClick, onItemContextMenu }: GalleryViewProps) {
+export function GalleryView({ groups, selectedIdsArray, onItemClick, onItemDoubleClick, onItemContextMenu }: GalleryViewProps) {
     const allItems = groups.flatMap(g => g.items);
     
     // Find the master focus index. Fallback to entirely 0 if neither array matches.
@@ -143,7 +141,6 @@ export function GalleryView({ groups, selectedIdsArray, dirHandle, onItemClick, 
                                isSelected={isSelected}
                                selectionOrderIndex={selIndex !== -1 ? selIndex + 1 : null}
                                totalSelected={selectedIdsArray.filter(Boolean).length}
-                               dirHandle={dirHandle}
                                onClick={(e) => onItemClick(id, e)}
                                onDoubleClick={(e) => onItemDoubleClick(item, e)}
                                onContextMenu={(e) => onItemContextMenu(item, e)}

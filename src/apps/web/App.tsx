@@ -197,6 +197,89 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     }
   }, [currentDir, loadHandleContentsToUI]);
 
+  // Background thumbnail persistence — extracts first-frame from videos that don't yet have a .thumbnail.jpg sidecar
+  // and writes it to the directory. Runs whenever currentDir changes (new folder opened).
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
+
+  useEffect(() => {
+    if (!currentDir) return;
+    const dirHandle = currentDir; // capture for async use
+
+    const THUMB_MAX = 320; // max dimension for saved thumbnails
+
+    function captureFrame(video: HTMLVideoElement): Promise<Blob | null> {
+      return new Promise((resolve) => {
+        // Use rAF to ensure the browser has painted the decoded frame
+        requestAnimationFrame(() => {
+          const w = video.videoWidth || THUMB_MAX;
+          const h = video.videoHeight || Math.round(THUMB_MAX * 9 / 16);
+          const scale = Math.min(1, THUMB_MAX / Math.max(w, h));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(resolve, 'image/jpeg', 0.8);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    function extractFirstFrame(file: File): Promise<Blob | null> {
+      return new Promise((resolve) => {
+        const videoObjectUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'auto';
+        video.muted = true;
+        video.playsInline = true;
+        const cleanup = async (capture: boolean) => {
+          const blob = capture ? await captureFrame(video) : null;
+          URL.revokeObjectURL(videoObjectUrl);
+          video.src = '';
+          resolve(blob);
+        };
+        video.addEventListener('error', () => cleanup(false), { once: true });
+        video.addEventListener('loadeddata', () => {
+          // loadeddata fires when the first frame is available — capture immediately
+          cleanup(true);
+        }, { once: true });
+        video.src = videoObjectUrl;
+        video.load();
+      });
+    }
+
+    (async () => {
+      const videoItems = itemsRef.current.filter(
+        (item): item is Extract<typeof item, { type: 'file' }> =>
+          item.type === 'file' &&
+          /\.(mp4|webm|mov|avi|mkv)$/i.test(item.pair.id) &&
+          !item.pair.thumbnailHandle
+      );
+      console.log(`[thumbnails] ${videoItems.length} video(s) need thumbnails in ${dirHandle.name}`);
+      for (const item of videoItems) {
+        const pair = item.pair;
+        try {
+          const file = await pair.mainHandle.getFile();
+          const blob = await extractFirstFrame(file);
+          if (!blob) { console.warn('[thumbnails] no blob for', pair.id); continue; }
+          const thumbName = `.${pair.id}.thumbnail.jpg`;
+          const thumbHandle = await dirHandle.getFileHandle(thumbName, { create: true });
+          const writable = await (thumbHandle as any).createWritable();
+          await writable.write(blob);
+          await writable.close();
+          pair.thumbnailHandle = thumbHandle;
+          console.log('[thumbnails] saved', thumbName);
+        } catch (e) {
+          console.warn('[thumbnails] failed for', pair.id, e);
+        }
+      }
+    })();
+  }, [currentDir]);
+
   const scanAndSetDirectory = useCallback(async (handle: FileSystemDirectoryHandle, isNewRoot: boolean = false) => {
     try {
       setLoading(true);
@@ -1000,7 +1083,6 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             <FilmstripView
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
-              dirHandle={currentDir ?? undefined}
               onItemClick={handleItemClick}
               onItemDoubleClick={handleItemDoubleClick}
               onItemContextMenu={(item, e) => {
@@ -1014,7 +1096,6 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
               viewMode={viewMode}
-              dirHandle={currentDir ?? undefined}
               onItemClick={handleItemClick}
               onItemDoubleClick={handleItemDoubleClick}
               onItemContextMenu={(item, e) => {

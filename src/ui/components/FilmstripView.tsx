@@ -19,7 +19,6 @@ import { useThumbnails } from '../hooks/useThumbnails';
 interface FilmstripViewProps {
   groups: GroupedItems[];
   selectedIdsArray: (string | null)[];
-  dirHandle?: FileSystemDirectoryHandle;
   onItemClick: (id: string, e: React.MouseEvent) => void;
   onItemDoubleClick: (item: GridItem, e: React.MouseEvent) => void;
   onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
@@ -128,7 +127,6 @@ function StripThumb({
   isSelected,
   selectionOrderIndex,
   totalSelected,
-  dirHandle,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -137,7 +135,6 @@ function StripThumb({
   isSelected: boolean;
   selectionOrderIndex: number | null;
   totalSelected: number;
-  dirHandle?: FileSystemDirectoryHandle;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -147,7 +144,7 @@ function StripThumb({
   const itemName = isFile ? pair!.id : item.name;
   const type = isFile ? getMediaType(itemName) : 'folder';
 
-  const thumbnailUrl = useThumbnails(pair?.mainHandle, dirHandle);
+  const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
 
   // Tooltip text
   const tooltipLines: string[] = [itemName];
@@ -215,7 +212,6 @@ function StripThumb({
 export function FilmstripView({
   groups,
   selectedIdsArray,
-  dirHandle,
   onItemClick,
   onItemDoubleClick,
   onItemContextMenu,
@@ -311,7 +307,6 @@ export function FilmstripView({
                 isSelected={isSelected}
                 selectionOrderIndex={selIdx !== -1 ? selIdx + 1 : null}
                 totalSelected={selectedIdsArray.filter(Boolean).length}
-                dirHandle={dirHandle}
                 onClick={(e) => onItemClick(id, e)}
                 onDoubleClick={(e) => onItemDoubleClick(item, e)}
                 onContextMenu={(e) => onItemContextMenu(item, e)}

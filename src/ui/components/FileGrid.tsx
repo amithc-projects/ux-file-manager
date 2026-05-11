@@ -11,7 +11,6 @@ interface FileGridItemProps {
   selectionOrderIndex: number | null; // 1-based order index, null if not selected
   totalSelected: number;
   viewMode: ViewMode;
-  dirHandle?: FileSystemDirectoryHandle;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -21,10 +20,10 @@ interface FileGridItemProps {
 
 
 
-function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, viewMode, dirHandle, onClick, onDoubleClick, onContextMenu, onItemHover, onItemLeave }: FileGridItemProps) {
+function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, viewMode, onClick, onDoubleClick, onContextMenu, onItemHover, onItemLeave }: FileGridItemProps) {
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
-  
+
   const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSingleClick = (e: React.MouseEvent) => {
@@ -42,7 +41,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
      onDoubleClick(e);
   };
   
-  const thumbnailUrl = useThumbnails(pair?.mainHandle, dirHandle);
+  const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
   
   const itemName = isFile ? pair!.id : item.name;
   const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
@@ -150,7 +149,6 @@ interface FileGridProps {
   groups: GroupedItems[];
   selectedIdsArray: (string | null)[];
   viewMode: ViewMode;
-  dirHandle?: FileSystemDirectoryHandle;
   onItemClick: (id: string, e: React.MouseEvent) => void;
   onItemDoubleClick: (item: GridItem, e: React.MouseEvent) => void;
   onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
@@ -158,7 +156,7 @@ interface FileGridProps {
   onItemLeave?: () => void;
 }
 
-export function FileGrid({ groups, selectedIdsArray, viewMode, dirHandle, onItemClick, onItemDoubleClick, onItemContextMenu, onItemHover, onItemLeave }: FileGridProps) {
+export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onItemDoubleClick, onItemContextMenu, onItemHover, onItemLeave }: FileGridProps) {
   if (groups.length === 0 || (groups.length === 1 && groups[0].items.length === 0)) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
@@ -190,7 +188,6 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, dirHandle, onItem
                 selectionOrderIndex={getSelectionOrderIndex(id)}
                 totalSelected={totalSelected}
                 viewMode={viewMode}
-                dirHandle={dirHandle}
                 onClick={(e) => onItemClick(id, e)}
                 onDoubleClick={(e) => onItemDoubleClick(item, e)}
                 onContextMenu={(e) => onItemContextMenu(item, e)}
