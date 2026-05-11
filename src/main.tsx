@@ -69,6 +69,15 @@ class SidekickManager extends HTMLElement {
     this._rerender();
   }
 
+  /** When non-null, restrict displayed files to those whose name appears in this list.
+   *  Folders are always shown. Set to null/undefined to clear the filter. */
+  private _allowedFiles: string[] | null = null;
+  get allowedFiles() { return this._allowedFiles; }
+  set allowedFiles(list: string[] | null) {
+    this._allowedFiles = (list && list.length) ? list : null;
+    this._rerender();
+  }
+
   // Internal ref so triggerProcess() can call back into the React tree
   private _triggerProcessRef: React.MutableRefObject<(() => void) | null> = { current: null };
 
@@ -121,6 +130,7 @@ class SidekickManager extends HTMLElement {
           selectionActions={this._selectionActions}
           noHashRouting={noHashRouting}
           hideInspector={hideInspector}
+          allowedFiles={this._allowedFiles}
         />
       </React.StrictMode>
     );

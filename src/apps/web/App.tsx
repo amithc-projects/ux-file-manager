@@ -56,6 +56,9 @@ export interface AppProps {
   /** When true, hides the right-side inspector panel (Props/Marks/Collection tabs).
    *  Use this when the host app provides its own metadata panel. */
   hideInspector?: boolean;
+  /** When non-null, restrict displayed files to those whose `pair.id` appears in this list.
+   *  Folders are always shown. Used by hosts to filter to e.g. a single recipe-run's outputs. */
+  allowedFiles?: string[] | null;
 }
 
 export interface NavigateOptions {
@@ -71,7 +74,7 @@ export interface AppRef {
   getCurrentDirectoryHandle: () => FileSystemDirectoryHandle | null;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -712,6 +715,11 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
 
 
+  const allowedFilesSet = useMemo(
+    () => (allowedFiles && allowedFiles.length ? new Set(allowedFiles) : null),
+    [allowedFiles]
+  );
+
   const processedGroups = useMemo(() => {
     let processable = (pathStack.length <= 1 ? items : [{ type: 'folder' as const, name: '..', handle: {} as any, lastModified: 0, size: 0 }, ...items]).filter(i => {
       const name = i.type === 'file' ? i.pair.id : i.name;
@@ -726,6 +734,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         if (i.type === 'folder' && i.name !== '..') return false;
         if (i.type === 'file' && getTypeFilter(i.pair.id) !== typeFilter) return false;
       }
+      // allowedFiles whitelist: when active, only show files whose name is in the set.
+      // Folders are always shown so the user can still navigate.
+      if (allowedFilesSet && i.type === 'file' && !allowedFilesSet.has(i.pair.id)) return false;
       return true;
     });
 
@@ -767,7 +778,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     });
 
     return Object.entries(groupsMap).filter(([_, arr]) => arr.length > 0).map(([groupName, items]) => ({ groupName, items }));
-  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter]);
+  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter, allowedFilesSet]);
 
   return (
     <div className="h-screen flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
