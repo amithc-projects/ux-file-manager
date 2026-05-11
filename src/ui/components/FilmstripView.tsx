@@ -185,7 +185,7 @@ function StripThumb({
         {/* Video play badge */}
         {type === 'video' && (
           <div className="absolute bottom-1.5 left-1.5 w-4 h-4 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm pointer-events-none z-10">
-            <Play size={7} className="text-white fill-white translate-x-px" />
+            <Play size={7} fill="currentColor" strokeWidth={0} className="text-white translate-x-px" />
           </div>
         )}
 

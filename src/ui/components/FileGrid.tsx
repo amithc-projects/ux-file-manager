@@ -6,7 +6,7 @@ import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play } from '
 /** Small play badge overlay shown on video thumbnails (bottom-left) */
 const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
   <div className={`absolute bottom-1.5 left-1.5 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm pointer-events-none z-10 ${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`}>
-    <Play size={size === 'sm' ? 7 : 9} className="text-white fill-white translate-x-px" />
+    <Play size={size === 'sm' ? 7 : 9} fill="currentColor" strokeWidth={0} className="text-white translate-x-px" />
   </div>
 );
 

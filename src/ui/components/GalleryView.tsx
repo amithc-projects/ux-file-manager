@@ -75,7 +75,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
            </div>
            {isVideo && (
              <div className="absolute bottom-1.5 left-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm pointer-events-none z-10">
-               <Play size={9} className="text-white fill-white translate-x-px" />
+               <Play size={9} fill="currentColor" strokeWidth={0} className="text-white translate-x-px" />
              </div>
            )}
            
