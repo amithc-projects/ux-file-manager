@@ -1,7 +1,14 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music } from 'lucide-react';
+import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play } from 'lucide-react';
+
+/** Small play badge overlay shown on video thumbnails (bottom-left) */
+const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
+  <div className={`absolute bottom-1.5 left-1.5 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm pointer-events-none z-10 ${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`}>
+    <Play size={size === 'sm' ? 7 : 9} className="text-white fill-white translate-x-px" />
+  </div>
+);
 
 export type ViewMode = 'grid' | 'filmstrip' | 'list';
 
@@ -83,6 +90,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         <div className="w-8 h-8 flex items-center justify-center shrink-0 mr-3 relative">
           <SelectionBadge />
           <IconComponent />
+          {isVideo && <VideoBadge size="sm" />}
         </div>
         <div className="flex-1 flex items-center gap-2 truncate pointer-events-none">
           <p className="text-sm font-medium truncate text-gray-200" title={itemName}>{itemName}</p>
@@ -118,7 +126,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         <div className="absolute inset-0 flex items-center justify-center p-4">
            <IconComponent />
         </div>
-        
+        {isVideo && <VideoBadge />}
         {isFile && pair!.sidecarHandle && (
            <div className="absolute bottom-2 right-2 bg-indigo-500/80 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold text-white shadow-sm z-10 pointers-none">
              Meta

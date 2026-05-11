@@ -1,7 +1,7 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
 
 interface GalleryViewProps {
@@ -73,6 +73,11 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
            <div className={`absolute inset-0 flex items-center justify-center p-2 opacity-100 transition-opacity ${thumbnailUrl ? 'p-0 bg-dark-950' : ''}`}>
                {renderVisual()}
            </div>
+           {isVideo && (
+             <div className="absolute bottom-1.5 left-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm pointer-events-none z-10">
+               <Play size={9} className="text-white fill-white translate-x-px" />
+             </div>
+           )}
            
            <div className="absolute inset-x-0 bottom-0 bg-dark-900/80 backdrop-blur pb-1 pt-1.5 px-2 pointer-events-none border-t border-dark-700/50">
                <p className="text-[10px] font-medium text-gray-200 truncate">{itemName}</p>
