@@ -1,51 +1,107 @@
 # Sidekick File Manager
 
-Sidekick is a local-first, browser-native file management interface designed to deliver professional-grade curation and file-browsing exclusively through the browser. 
+Sidekick is a local-first, browser-native file manager that ships as a **distributable web component** (`<sidekick-manager>`). Built with React 18, TailwindCSS, and the File System Access API — no backend required.
 
-Leveraging the **File System Access API**, Sidekick bypasses the need for local desktop electron bundles, providing deeply native file handling (read, write, delete, move, archive) entirely on the front end.
+---
+
+## Quick Start (Standalone Dev App)
+
+```bash
+npm install
+npm run dev
+```
+
+Open the local URL, click **Select Local Directory**, and grant browser permissions.
+
+---
+
+## Building the Web Component Bundle
+
+```bash
+npm run build
+```
+
+Output: `dist/sidekick-manager.iife.js` — a single self-contained IIFE that registers the `<sidekick-manager>` custom element.
+
+---
+
+## Embedding in a Host App
+
+```html
+<script src="/sidekick-manager.iife.js"></script>
+<sidekick-manager style="display:block; width:100%; height:100%;"></sidekick-manager>
+```
+
+See [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) for the full API reference.
+
+---
 
 ## Features
 
-- **Master-Detail Gallery Engine:** Dynamically splits directories into a unified Filmstrip carousel beneath an expansive Master View Canvas.
-- **Universal Previews:** Supports rigorous native rendering for arrays of filetypes, bypassing OS limitations via unified Abstract Engines:
-  - Supports Markdown, JSON (with collapsible trees), CSS, Shell scripts, TypeScript, and HTML Sandboxes.
-  - Generates ZIP extraction maps visually.
-  - Mounts native vector PDFs directly over internal canvases.
-  - Projects `jpg`, `png`, `webp`, `mp4`, `webm` live from native browser streams.
-- **Native Video Editor & Splitter:** Built-in video trimming engine utilizing `mediabunny` WASM processing for lossless clipping, timeline scrubbing, and multi-segment auto-splitting explicitly in the browser sandbox.
-- **Native Slideshow Engine:** High-performance, full-screen slideshow viewer supporting bulk image selection and automated 3-second interval playback with arrow-key navigation.
-- **Native Context Bindings:** Bypasses limitations on traditional browsers by tapping into active Context Menus for features like `Copy File Contents`, piping text and binary Arrays directly into OS clipboards.
-- **Sidecar Metadata Engine:** Seamlessly hides and integrates metadata sidecars (`.meta.json`, `filename.json`) automatically bridging EXIF arrays and system bounds back onto the primary nodes.
-- **Selection Modifiers:** Emulates traditional macOS Finder / Windows Explorer cursor bindings (`Shift`, `Cmd`, `Alt` clicks).
-- **Silent Bookmarking:** Mounts heavily restricted browser file handling states into `IndexedDB` memory, allowing cross-session "Continue Where You Left Off!" persistence without re-prompting users structurally!
+### File Management
+- Open any local directory via the File System Access API
+- Grid, List, and Filmstrip view modes
+- Multi-select with Shift / Cmd / Ctrl click
+- Sort by name, type, date, size (ascending/descending)
+- Group by type (Images, Videos, Documents, etc.)
+- Type filter buttons (All / Images / Video / Audio / Documents / Other)
+- Filter / fuzzy search across filenames and sidecar metadata content
+- Context menu: Copy, Delete, Move, Add to Collection, Bookmark Folder
+- Folder diff — compare two directories side by side
+- ZIP export of selected files or entire collection
 
-## Target Environment
+### Previews & Thumbnails
+- Images: inline thumbnail grid + full-screen lightbox / slideshow
+- Video: automatic first-frame thumbnail extraction, persisted as `.{name}.thumbnail.jpg` alongside the source file so subsequent opens are instant
+- Audio: detected by extension (mp3, wav, ogg, m4a, flac, aac) with music-note icon
+- Filmstrip view: large viewer panel + horizontal scrolling thumbnail strip
+- Side-by-side file compare (`two-file` mode)
+- Transform compare mode (`transform`) — for host apps that supply a render callback
 
-- **Browser-Based PWA:** Optimized for Chrome and Chromium-based engines (v86+) utilizing native File System Access capabilities. 
-- *Note:* Firefox currently limits local directory mutations, therefore Chromium browsers are mandated for Write/Save functionalities.
+### Sidecar Metadata
+- Sidecar files use dot-prefix format: `.{filename}`
+- Automatically paired during directory scan
+- Delete / copy / move operations include the paired sidecar
+- Sidecar content shown in the Properties panel and included in search
 
-## Installation & Startup
+### Collection & Bookmarks
+- **Collection**: virtual cross-folder item basket — add items via right-click from any folder, view them as a grid in the main window (with a "virtual view" banner distinguishing it from real filesystem folders), then ZIP / copy / move the batch
+- **Bookmarks**: persist frequently-used folder shortcuts via IndexedDB; one-click to jump back
+- Both accessible from icon buttons in the top bar
 
-1. Run standard dependency checks:
-   ```bash
-   npm install
-   ```
+### Properties Panel
+- Shows Kind, Size, Modified date, and raw sidecar metadata for the selected item
+- Can be hidden in host apps that supply their own metadata UI via the `hide-inspector` attribute
 
-2. Activate the local Vite development instance:
-   ```bash
-   npm run dev
-   ```
+### Navigation
+- Clickable breadcrumb path
+- Child-folder quick-jump dropdown (chevron next to folder name)
+- Recent workspaces persisted in IndexedDB
+- `..` folder entry to navigate up
+- Deep-link via URL hash (disabled when `no-hash-routing` is set)
 
-3. Route to your Localhost port, click **Select Local Directory**, and authorize browser permissions!
+---
 
-## Architecture Details
+## Architecture
 
-- Built entirely on **React 18** and **TailwindCSS**.
-- Icons provided by **Lucide-React**.
-- Archiving powered by **JSZip**.
-- Persistent Storage handled natively by **idb-keyval**.
-- Markdown renders natively initialized by **react-markdown**.
+| Layer | Technology |
+|---|---|
+| UI framework | React 18 |
+| Styling | TailwindCSS (injected into shadow DOM) |
+| Icons | Lucide React |
+| Archiving | JSZip |
+| Persistent storage | idb-keyval (IndexedDB) |
+| Build / bundle | Vite (IIFE library mode) |
+| Web component | Native `HTMLElement` + `ReactDOM.createRoot` into shadow root |
+
+---
+
+## Browser Support
+
+Requires a **Chromium-based browser** (Chrome 86+, Edge, Opera). The writable File System Access API is not supported in Firefox or Safari.
+
+---
 
 ## Privacy
 
-Everything runs completely locally within the browser sandbox state. No backend database or server storage mechanism is necessary, no files map to external cloud APIs. Data remains locked heavily on the initial hardware.
+Everything runs locally in the browser sandbox. No files are uploaded. No analytics. No backend.

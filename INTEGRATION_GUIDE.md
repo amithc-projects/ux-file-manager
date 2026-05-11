@@ -1,81 +1,142 @@
-# Sidekick Web Component Integration Guide
+# Sidekick Web Component — Integration Guide
 
-This document outlines how to embed the Sidekick File Manager natively into any HTML document, Single Page Application (SPA), or Browser Extension.
-
-Sidekick leverages the **Shadow DOM**, which means it is entirely self-contained. The React application and all Tailwind CSS styles are strictly isolated—it will not break your host application's CSS, and your global CSS will not affect its interior design.
+Embed `<sidekick-manager>` into any HTML page, SPA, or browser extension. The component uses Shadow DOM, so its React app and Tailwind styles are fully isolated — it will not interfere with your host application's CSS, and vice versa.
 
 ---
 
-## 1. Quick Start Installation
+## 1. Installation
 
-Because the application is compiled in Vite's "Library Mode", deployment is as simple as injecting a single JavaScript file.
+Copy the compiled bundle into your project and load it with a `<script>` tag:
 
-#### Step 1: Link the Source
-Place the compiled executable script into your `<head>` or `<body>`.
 ```html
-<!-- Load the Sidekick Web Component Bundle -->
-<script src="/path/to/dist/sidekick-manager.iife.js"></script>
+<script src="/path/to/sidekick-manager.iife.js"></script>
 ```
 
-#### Step 2: Render the Component
-Place the custom element wherever you want the File Manager to safely mount. It will expand to fill exactly `100%` of its parent container's width and height boundaries.
+Then place the element wherever you want the file manager to mount. It fills `100%` of its parent container:
+
 ```html
 <main style="width: 100vw; height: 100vh;">
-    <!-- Render the complete file manager -->
-    <sidekick-manager></sidekick-manager>
+  <sidekick-manager></sidekick-manager>
 </main>
 ```
 
 ---
 
-## 2. Reading Data (Outbound Telemetry)
+## 2. HTML Attributes
 
-Sidekick aggressively detaches itself from React state layers and communicates to your environment using **Standard DOM CustomEvents**. You can listen to these events exactly as you would listen to a standard button `<click>`!
+Attributes are observed — changing them after mount triggers a re-render.
 
-To listen to the component, select the element and attach an Event Listener targeting the `sidekick:[event]` prefix.
-
-### Example Listener Script
-```javascript
-const manager = document.querySelector('sidekick-manager');
-
-manager.addEventListener('sidekick:selection', (event) => {
-    const payload = event.detail;
-    console.log("The user highlighted these files:", payload.items);
-});
-```
-
-### Event Reference Dictionary
-All telemetry payloads are delivered securely inside the native `event.detail` wrapper.
-
-| Event Name | Trigger | `event.detail` Payload Structure Example |
-| :--- | :--- | :--- |
-| `sidekick:ready` | Fires immediately once the React lifecycle finishes booting internally. | `{ version: '1.0' }` |
-| `sidekick:workspace` | Fires when the user traverses a folder or explicitly selects a top-level directory root. | `{ folderName: 'sandbox', pathLength: 1 }` |
-| `sidekick:selection` | Fires **any time** the highlighted selection array shifts natively or via modifier clicks. | `{ items: ['image.jpg', 'video.mp4'] }` |
-| `sidekick:action` | Fires when an OS-level generic action completes (e.g. copying text, deleting chunks). | `{ action: 'copy-contents', target: 'data.json' }` |
-| `sidekick:error` | Fires if the browser blocks a high-level FSA prompt or Read/Write protocol. | `{ code: 'FSA_DENIED', message: 'Access Denied' }` |
+| Attribute | Type | Default | Description |
+|---|---|---|---|
+| `no-hash-routing` | boolean (presence) | off | Prevents sidekick from reading or writing `window.location.hash`. **Required** when the host app uses the hash for its own routing (e.g. `#fld`, `#set`) — otherwise sidekick treats the hash as a subfolder deep-link and clears it on failure, which fires the host router. |
+| `hide-inspector` | boolean (presence) | off | Hides the right-side Properties panel. Use when your host app provides its own metadata UI driven by `sidekick:file-focus`. |
+| `hidden-files-count` | string (number) | `"0"` | When > 0, shows an orange warning banner. Set this when you have filtered files out before passing a directory to sidekick. |
+| `hidden-files-message` | string | — | Custom message text for the hidden files banner, e.g. `"3 files hidden — this recipe only accepts Images."` |
+| `compare-mode` | `two-file` \| `transform` | `two-file` | `two-file` shows a side-by-side compare modal for two selected files. `transform` activates the ImageWorkspace-style callback compare used by processing screens. |
 
 ---
 
-## 3. Passing Data (Inbound Control)
+## 3. Imperative Properties
 
-Because `<sidekick-manager>` is treated as a first-class HTMLElement Node constructed uniquely by the browser, passing data *back* into the File Manager from your Host Environment is purely object-oriented native manipulation.
+Set these as JavaScript properties on the element *after* it is in the DOM:
 
-To control the application:
-1. Target the DOM Node: `const manager = document.querySelector('sidekick-manager');`
-2. Since the class prototype natively extends `HTMLElement`, any exposed methods directly patched onto the `class SidekickManager` definition in your Source Code become immediately globally callable by external scripts.
-
-**Example (Programmatic Deep Linking & Configuration):**
-Once the user has evaluated a Root Folder, your Host Extension can instantly skip into nested sub-directories natively bypassing the UI. You can also pass an optional payload to force specific File selections and Visual Modes instantly!
 ```javascript
-// Target the embedded Web Component
-const manager = document.querySelector('sidekick-manager');
+const sk = document.querySelector('sidekick-manager');
+```
 
-// Plunge recursively into the active workspace AND forcefully select a file in Gallery mode!
-manager.navigate('www.bbc.co.uk/assets/images', {
-    filename: 'hero-banner.webp', // The file to automatically highlight once loaded
-    viewMode: 'gallery',          // 'grid' | 'list' | 'gallery'
-    sortBy: 'date',               // 'name' | 'type' | 'date' | 'size'
-    sortAsc: false                // true (ascending) | false (descending)
-}); 
+| Property | Type | Description |
+|---|---|---|
+| `customSort` | `(a: GridItem, b: GridItem) => number \| null` | Custom sort function applied after the built-in sort. Return `null` to disable. |
+| `onDoubleClick` | `(entry, index, filteredList) => void` | Called when a file is double-clicked. Receives the item, its index in the filtered list, and the full filtered list — use to open a host lightbox. |
+| `compareRender` | `async (file: File) => { beforeUrl, afterUrl, beforeLabel?, afterLabel? }` | Required for `compare-mode="transform"`. Returns object URLs for before/after preview. |
+| `compareInfo` | `async (file: File) => void` | Optional info-button callback in transform compare. |
+| `compareControls` | `string` | HTML string for a custom toolbar rendered inside the transform compare view. |
+| `compareBindControls` | `(container: HTMLDivElement) => void` | Called once the custom controls HTML is inserted into the DOM — wire up event listeners here. |
+
+---
+
+## 4. Methods
+
+```javascript
+const sk = document.querySelector('sidekick-manager');
+```
+
+| Method | Description |
+|---|---|
+| `sk.setRoot(handle)` | Programmatically open a `FileSystemDirectoryHandle` as the root workspace. |
+| `sk.navigate(path, options?)` | Navigate to a subfolder path. `options`: `{ filename?, viewMode?, sortBy?, sortAsc? }` |
+| `sk.getDirectoryHandle()` | Returns the current `FileSystemDirectoryHandle`, or `null` if no folder is open. Useful for host apps that need to enumerate or write files in the active folder. |
+| `sk.triggerProcess()` | Re-runs `compareRender` on the currently active file. Call this from a video scrubber when the seek position changes. |
+
+---
+
+## 5. Events
+
+All events bubble from the element as standard `CustomEvent`s; payload is in `event.detail`.
+
+```javascript
+sk.addEventListener('sidekick:selection', (e) => {
+  console.log('selected files:', e.detail.items);
+});
+```
+
+| Event | `event.detail` | When it fires |
+|---|---|---|
+| `sidekick:ready` | `{ version: '1.0' }` | React app has mounted and is ready |
+| `sidekick:workspace` | `{ folderName, pathLength }` | User navigates into or out of a folder |
+| `sidekick:selection` | `{ items: string[] }` | Selection changes — ordered array of selected filenames |
+| `sidekick:file-focus` | `{ filename, handle, metadata, size, lastModified }` or `null` | Exactly one file is selected (or selection clears). Use to drive a host metadata panel. |
+| `sidekick:action` | `{ action, target }` | A file operation completes (copy, delete, etc.) |
+| `sidekick:error` | `{ code, message }` | A file operation or FSA permission request fails |
+
+---
+
+## 6. Sidecar Format
+
+Sidecars use dot-prefix naming: `.{filename}` in the same directory as the source file.
+
+```
+my-video.mp4
+.my-video.mp4          ← sidecar JSON
+.my-video.mp4.thumbnail.jpg  ← persisted video thumbnail (auto-generated)
+```
+
+Sidecars are JSON objects. Content is surfaced in the Properties panel and included in the search index when fuzzy-searching.
+
+File operations (delete, copy, move) automatically include the paired sidecar.
+
+---
+
+## 7. Full Example — pic-machina fld.js pattern
+
+```javascript
+// Mount
+main.innerHTML = `<sidekick-manager id="sk" no-hash-routing hide-inspector
+  style="display:block;width:100%;height:100%"></sidekick-manager>`;
+const sk = main.querySelector('#sk');
+
+// Open folder on ready
+sk.addEventListener('sidekick:ready', () => {
+  sk.setRoot(myDirectoryHandle);
+});
+
+// Track current folder (for writing files, etc.)
+let currentHandle = null;
+sk.addEventListener('sidekick:workspace', () => {
+  currentHandle = sk.getDirectoryHandle();
+});
+
+// Drive host metadata panel from single-file selection
+sk.addEventListener('sidekick:file-focus', (e) => {
+  if (e.detail) {
+    metaPanel.setFile(e.detail.filename, e.detail.handle, e.detail.metadata);
+  } else {
+    metaPanel.clear();
+  }
+});
+
+// React to selection for batch operations
+sk.addEventListener('sidekick:selection', (e) => {
+  runButton.disabled = e.detail.items.length === 0;
+});
 ```
