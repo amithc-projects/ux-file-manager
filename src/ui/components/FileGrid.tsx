@@ -3,12 +3,29 @@ import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
 import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play } from 'lucide-react';
 
-/** Small play badge overlay shown on video thumbnails (bottom-left) */
-const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
-  <div className={`absolute bottom-1.5 left-1.5 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm pointer-events-none z-10 ${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`}>
-    <Play size={size === 'sm' ? 7 : 9} fill="currentColor" strokeWidth={0} className="text-white translate-x-px" />
-  </div>
-);
+/** Small play badge overlay shown on video items (bottom-left of thumbnail) */
+const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => {
+  const dim = size === 'sm' ? 16 : 20;
+  const iconSize = size === 'sm' ? 7 : 9;
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: 6,
+      left: 6,
+      width: dim,
+      height: dim,
+      borderRadius: '50%',
+      background: 'rgba(0,0,0,0.65)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none',
+      zIndex: 20,
+    }}>
+      <Play size={iconSize} fill="white" stroke="none" strokeWidth={0} style={{ marginLeft: 1, color: 'white' }} />
+    </div>
+  );
+};
 
 export type ViewMode = 'grid' | 'filmstrip' | 'list';
 
@@ -122,11 +139,11 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
       className={`group cursor-pointer rounded-xl border flex flex-col overflow-visible transition-all duration-200 h-full select-none relative hover:z-[60] ${selectedClass}`}
     >
       <SelectionBadge />
+      {isVideo && <VideoBadge />}
       <div className="w-full py-[50%] flex items-center justify-center bg-dark-900/50 relative shrink-0 rounded-t-xl overflow-hidden pointer-events-none">
         <div className="absolute inset-0 flex items-center justify-center p-4">
            <IconComponent />
         </div>
-        {isVideo && <VideoBadge />}
         {isFile && pair!.sidecarHandle && (
            <div className="absolute bottom-2 right-2 bg-indigo-500/80 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold text-white shadow-sm z-10 pointers-none">
              Meta
