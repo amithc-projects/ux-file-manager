@@ -166,7 +166,7 @@ export function InspectorPanel({
              onClick={() => setActiveTab('collection')}
              className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1 transition-colors relative ${activeTab === 'collection' ? 'text-blue-400 border-b-2 border-blue-400 bg-dark-800' : 'text-gray-500 hover:text-gray-300'}`}
           >
-             <BoxSelect size={14} /> Basket
+             <BoxSelect size={14} /> Collection
              {collection.length > 0 && (
                 <span className="absolute top-2 right-2 bg-blue-500 text-white min-w-[16px] h-4 rounded-full text-[10px] flex items-center justify-center px-1 font-bold">
                    {collection.length}
