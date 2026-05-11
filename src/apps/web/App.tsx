@@ -562,7 +562,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
        let curr = stack[stack.length - 1];
        const newStack: FileSystemDirectoryHandle[] = [];
        for (const chunk of chunks) {
-          curr = await curr.getDirectoryHandle(chunk, { create: true });
+          curr = await curr.getDirectoryHandle(chunk, { create: false });
           newStack.push(curr);
        }
        setPathStack([...stack, ...newStack]);
