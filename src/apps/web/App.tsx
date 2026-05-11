@@ -344,8 +344,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     
     setLoading(true);
     loadHandleContentsToUI(parentHandle).finally(() => setLoading(false));
-    window.location.hash = '';
-  }, [pathStack, loadHandleContentsToUI]);
+    if (!noHashRouting) window.location.hash = '';
+  }, [pathStack, loadHandleContentsToUI, noHashRouting]);
 
   const handleItemDoubleClick = useCallback((item: GridItem, e: React.MouseEvent) => {
     e.stopPropagation();
