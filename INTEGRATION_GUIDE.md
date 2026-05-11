@@ -93,11 +93,11 @@ sk.addEventListener('sidekick:selection', (e) => {
 
 ## 6. Sidecar Format
 
-Sidecars use dot-prefix naming: `.{filename}` in the same directory as the source file.
+Sidecars use dot-prefix + `.json` extension, in the same directory as the source file:
 
 ```
 my-video.mp4
-.my-video.mp4          ← sidecar JSON
+.my-video.mp4.json           ← sidecar (JSON metadata)
 .my-video.mp4.thumbnail.jpg  ← persisted video thumbnail (auto-generated)
 ```
 

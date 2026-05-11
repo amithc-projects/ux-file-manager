@@ -20,7 +20,9 @@ export class ScannerService {
     const pairsMap = new Map<string, FilePair>();
     const sidecarsMap = new Map<string, FileSystemFileHandle>();
     const thumbnailsMap = new Map<string, FileSystemFileHandle>();
-    const sidecarRegex = /^\.(?:meta_)?(.+)$/;
+    // Sidecar format: .{filename}.json  e.g. photo.jpg → .photo.jpg.json
+    // Thumbnail format: .{filename}.thumbnail.jpg (checked first to avoid thumbnail being treated as sidecar)
+    const sidecarRegex = /^\.(.+)\.json$/i;
     const thumbnailRegex = /^\.(.+)\.thumbnail\.jpg$/i;
 
     for (const file of allFiles) {
