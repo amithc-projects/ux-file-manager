@@ -1,7 +1,7 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play } from 'lucide-react';
+import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play, Braces } from 'lucide-react';
 
 /** Small play badge overlay shown on video items (bottom-left of thumbnail) */
 const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => {
@@ -71,6 +71,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
   const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
   const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
   const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
+  const isJson  = isFile && /\.json$/i.test(itemName);
 
   const IconComponent = () => {
     if (!isFile) return <Folder size={viewMode === 'list' ? 24 : 64} className="text-blue-500/80 drop-shadow-md" fill="currentColor" />;
@@ -78,6 +79,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
     if (isImage) return <ImageIcon size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
     if (isVideo) return <Film size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
     if (isAudio) return <Music size={viewMode === 'list' ? 20 : 48} className="text-purple-500 pointer-events-none" />;
+    if (isJson)  return <Braces size={viewMode === 'list' ? 20 : 48} className="text-amber-400/90 pointer-events-none" />;
     return <FileIcon size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
   };
 

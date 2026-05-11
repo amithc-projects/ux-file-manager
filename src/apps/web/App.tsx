@@ -59,6 +59,10 @@ export interface AppProps {
   /** When non-null, restrict displayed files to those whose `pair.id` appears in this list.
    *  Folders are always shown. Used by hosts to filter to e.g. a single recipe-run's outputs. */
   allowedFiles?: string[] | null;
+  /** When non-null, switches the type-filter chips to recipe mode: only chips for these
+   *  types are shown (even with count=0), all are active by default, multi-select toggles,
+   *  and files of disallowed types are hidden unconditionally. */
+  allowedTypes?: TypeFilter[] | null;
 }
 
 export interface NavigateOptions {
@@ -74,7 +78,7 @@ export interface AppRef {
   getCurrentDirectoryHandle: () => FileSystemDirectoryHandle | null;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null, allowedTypes = null }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,7 +121,21 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const [stcConfig, setStcConfig] = useState<StcConfig | null>(() => loadStcConfig());
   const [stcFiles, setStcFiles] = useState<File[]>([]);
   const [stcModalOpen, setStcModalOpen] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  // Active type filter chips. Empty Set = no filter (show all). In recipe mode,
+  // initialised to the full allowedTypes list.
+  const [typeFilter, setTypeFilter] = useState<Set<TypeFilter>>(
+    () => new Set(allowedTypes ?? [])
+  );
+
+  // When the host changes allowedTypes (recipe context switch), reset to the new set.
+  React.useEffect(() => {
+    setTypeFilter(new Set(allowedTypes ?? []));
+  }, [allowedTypes ? allowedTypes.join(',') : null]);
+
+  const allowedTypesSet = React.useMemo(
+    () => (allowedTypes && allowedTypes.length ? new Set(allowedTypes) : null),
+    [allowedTypes ? allowedTypes.join(',') : null]
+  );
 
   const { selectedIdsArray, setSelectedIdsArray, selectedIds, toggleSelection, clearSelection } = useSelection<GridItem>(items, true);
 
@@ -184,8 +202,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         ...populatedPairs.map(p => ({ type: 'file' as const, pair: p }))
       ]);
       clearSelection();
-      setTypeFilter('all');
-  }, [clearSelection]);
+      setTypeFilter(new Set(allowedTypes ?? []));
+  }, [clearSelection, allowedTypes ? allowedTypes.join(',') : null]);
 
   useEffect(() => {
      if (pendingSelection && items.length > 0) {
@@ -729,13 +747,17 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         ? JSON.stringify(i.pair.metadata).toLowerCase().includes(q)
         : false;
       if (!nameMatch && !sidecarMatch) return false;
-      // Type filter: when active hide folders (except '..') and filter files by category
-      if (typeFilter !== 'all') {
-        if (i.type === 'folder' && i.name !== '..') return false;
-        if (i.type === 'file' && getTypeFilter(i.pair.id) !== typeFilter) return false;
+      // Type filter:
+      //   - Recipe mode (allowedTypesSet): hide files of disallowed types
+      //     unconditionally, and within the allowed set apply the active toggles.
+      //   - Legacy single-select mode: a non-empty set narrows; empty = show all.
+      // Folders are always shown so the user can still navigate.
+      if (i.type === 'file') {
+        const cat = getTypeFilter(i.pair.id);
+        if (allowedTypesSet && !allowedTypesSet.has(cat)) return false;
+        if (typeFilter.size > 0 && !typeFilter.has(cat)) return false;
       }
       // allowedFiles whitelist: when active, only show files whose name is in the set.
-      // Folders are always shown so the user can still navigate.
       if (allowedFilesSet && i.type === 'file' && !allowedFilesSet.has(i.pair.id)) return false;
       return true;
     });
@@ -743,13 +765,15 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     processable.sort((a, b) => {
       const nameA = a.type === 'file' ? a.pair.id : a.name;
       const nameB = b.type === 'file' ? b.pair.id : b.name;
+      // '..' (parent navigation) always pinned to top
       if (nameA === '..') return -1;
       if (nameB === '..') return 1;
+      // Real folders sort AFTER files, regardless of sort key / direction
+      if (a.type !== b.type) return a.type === 'folder' ? 1 : -1;
 
       let result = 0;
       if (sortBy === 'type') {
-         if (a.type !== b.type) result = a.type === 'folder' ? -1 : 1;
-         else if (a.type === 'file' && b.type === 'file') result = (nameA.split('.').pop() || '').localeCompare(nameB.split('.').pop() || '');
+         if (a.type === 'file' && b.type === 'file') result = (nameA.split('.').pop() || '').localeCompare(nameB.split('.').pop() || '');
       } else if (sortBy === 'date') {
          result = (a.type === 'file' ? (a.pair.lastModified || 0) : 0) - (b.type === 'file' ? (b.pair.lastModified || 0) : 0);
       } else if (sortBy === 'size') {
@@ -763,8 +787,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     if (customSort) processable.sort(customSort);
 
     if (groupBy === 'none') return [{ groupName: '', items: processable }];
-    
-    const groupsMap: Record<string, GridItem[]> = { 'Navigation': [], 'Folders': [], 'Images': [], 'Documents': [], 'Videos': [], 'Other Files': [] };
+
+    // Group order: Navigation → files (by type) → Folders (at end)
+    const groupsMap: Record<string, GridItem[]> = { 'Navigation': [], 'Images': [], 'Documents': [], 'Videos': [], 'Other Files': [], 'Folders': [] };
     processable.forEach(item => {
       if (item.type === 'folder' && item.name === '..') groupsMap['Navigation'].push(item);
       else if (item.type === 'folder') groupsMap['Folders'].push(item);
@@ -778,7 +803,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     });
 
     return Object.entries(groupsMap).filter(([_, arr]) => arr.length > 0).map(([groupName, items]) => ({ groupName, items }));
-  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter, allowedFilesSet]);
+  }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter, allowedFilesSet, allowedTypesSet]);
 
   return (
     <div className="h-screen flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
@@ -1138,7 +1163,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
               {/* Type filter buttons */}
               <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                <TypeFilters items={items} active={typeFilter} onChange={setTypeFilter} />
+                <TypeFilters items={items} active={typeFilter} onChange={setTypeFilter} allowedTypes={allowedTypes} />
               </div>
 
               {/* View mode */}

@@ -10,7 +10,7 @@ class SidekickManager extends HTMLElement {
 
   // ── Observed HTML attributes ───────────────────────────────────────────────
   static get observedAttributes() {
-    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing', 'hide-inspector'];
+    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing', 'hide-inspector', 'allowed-types'];
   }
 
   attributeChangedCallback() {
@@ -112,6 +112,11 @@ class SidekickManager extends HTMLElement {
     const compareMode = (this.getAttribute('compare-mode') as 'two-file' | 'transform') || 'two-file';
     const noHashRouting = this.hasAttribute('no-hash-routing');
     const hideInspector = this.hasAttribute('hide-inspector');
+    const allowedTypesAttr = this.getAttribute('allowed-types');
+    const VALID_TYPES = new Set(['images', 'video', 'audio', 'documents', 'other']);
+    const allowedTypes = allowedTypesAttr
+      ? (allowedTypesAttr.split(',').map(s => s.trim()).filter(s => VALID_TYPES.has(s)) as any[])
+      : null;
 
     this.root.render(
       <React.StrictMode>
@@ -131,6 +136,7 @@ class SidekickManager extends HTMLElement {
           noHashRouting={noHashRouting}
           hideInspector={hideInspector}
           allowedFiles={this._allowedFiles}
+          allowedTypes={allowedTypes && allowedTypes.length ? allowedTypes : null}
         />
       </React.StrictMode>
     );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
 
 interface GalleryViewProps {
@@ -26,6 +26,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
     const isImage = isFile && /\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(itemName);
     const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
     const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
+    const isJson  = isFile && /\.json$/i.test(itemName);
     const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
 
     const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,6 +49,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
         if (isImage) return <ImageIcon size={24} className="text-gray-500 pointer-events-none" />;
         if (isVideo) return <Film size={24} className="text-gray-500 pointer-events-none" />;
         if (isAudio) return <Music size={24} className="text-purple-500 pointer-events-none" />;
+        if (isJson)  return <Braces size={24} className="text-amber-400/90 pointer-events-none" />;
         return <FileIcon size={24} className="text-gray-500 pointer-events-none" />;
     };
 

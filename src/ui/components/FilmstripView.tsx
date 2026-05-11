@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
 
 interface FilmstripViewProps {
@@ -160,6 +160,7 @@ function StripThumb({
     if (type === 'image') return <ImageIcon size={28} className="text-gray-500" />;
     if (type === 'video') return <Film size={28} className="text-gray-500" />;
     if (type === 'audio') return <Music size={28} className="text-purple-500" />;
+    if (/\.json$/i.test(itemName)) return <Braces size={28} className="text-amber-400/90" />;
     return <FileIcon size={28} className="text-gray-500" />;
   };
 

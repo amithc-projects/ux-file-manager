@@ -13,6 +13,8 @@ export class ScannerService {
       if (entry.kind === 'file') {
         allFiles.push(entry);
       } else if (entry.kind === 'directory') {
+        // Hide dot-prefixed folders (.PicMachina, .git, etc.) from the listing
+        if (name.startsWith('.')) continue;
         folders.push(entry);
       }
     }
@@ -35,6 +37,9 @@ export class ScannerService {
       if (match) {
         sidecarsMap.set(match[1], file);
       } else {
+        // Hide remaining dot-prefixed files (.DS_Store, .keep, other hidden files)
+        // from the main listing. Sidecars/thumbnails were already routed above.
+        if (file.name.startsWith('.')) continue;
         pairsMap.set(file.name, {
           id: file.name,
           mainHandle: file,

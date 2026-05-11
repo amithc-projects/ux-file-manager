@@ -15,6 +15,18 @@ export function PreviewModal({ item, forceText, onClose, onSaveNewFile }: Previe
     if (e.target === e.currentTarget) onClose();
   };
 
+  // Close on Escape — standard lightbox affordance
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   if (item.type !== 'file') return null;
 
   return (
