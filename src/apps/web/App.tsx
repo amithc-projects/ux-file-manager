@@ -1000,6 +1000,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             <FilmstripView
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
+              dirHandle={currentDir ?? undefined}
               onItemClick={handleItemClick}
               onItemDoubleClick={handleItemDoubleClick}
               onItemContextMenu={(item, e) => {
@@ -1009,10 +1010,11 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               }}
             />
           ) : (
-            <FileGrid 
+            <FileGrid
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
               viewMode={viewMode}
+              dirHandle={currentDir ?? undefined}
               onItemClick={handleItemClick}
               onItemDoubleClick={handleItemDoubleClick}
               onItemContextMenu={(item, e) => {
