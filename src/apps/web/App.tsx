@@ -1251,12 +1251,6 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           <InspectorPanel
              isOpen={true}
              selectedItem={selectedItem}
-             collection={collection}
-             bookmarks={bookmarks}
-             onRemoveFromCollection={(id) => setCollection(prev => prev.filter(i => (i.type === 'file' ? i.pair.id : i.name) !== id))}
-             onCollectionBatchAction={handleCollectionBatch}
-             onRemoveBookmark={async (id) => { const bk = await StorageService.removeBookmark(id); setBookmarks(bk); }}
-             onOpenBookmark={handleOpenBookmark}
           />
         )}
       </div>
