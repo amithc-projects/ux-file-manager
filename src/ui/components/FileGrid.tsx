@@ -139,11 +139,11 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
       className={`group cursor-pointer rounded-xl border flex flex-col overflow-visible transition-all duration-200 h-full select-none relative hover:z-[60] ${selectedClass}`}
     >
       <SelectionBadge />
-      {isVideo && <VideoBadge />}
       <div className="w-full py-[50%] flex items-center justify-center bg-dark-900/50 relative shrink-0 rounded-t-xl overflow-hidden pointer-events-none">
         <div className="absolute inset-0 flex items-center justify-center p-4">
            <IconComponent />
         </div>
+        {isVideo && <VideoBadge />}
         {isFile && pair!.sidecarHandle && (
            <div className="absolute bottom-2 right-2 bg-indigo-500/80 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold text-white shadow-sm z-10 pointers-none">
              Meta
