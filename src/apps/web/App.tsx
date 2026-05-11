@@ -219,14 +219,14 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                }
             } catch (deepLinkErr) { window.location.hash = ''; }
          }
-         setPathStack(resolvedStack);
          await loadHandleContentsToUI(finalTargetHandle);
+         setPathStack(resolvedStack);
       } else {
+         await loadHandleContentsToUI(handle);
          setPathStack(prev => {
            if (prev.length > 0 && prev[prev.length - 1].name === handle.name) return prev;
            return [...prev, handle];
          });
-         await loadHandleContentsToUI(handle);
       }
     } catch (err) { } finally { setLoading(false); }
   }, [loadHandleContentsToUI]);

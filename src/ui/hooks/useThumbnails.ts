@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Returns a blob URL thumbnail for any image or video file handle.
@@ -7,13 +7,19 @@ import { useState, useEffect } from 'react';
  * - Videos: checks for a persisted sidecar thumbnail (.{filename}.thumbnail.jpg)
  *   in the directory first; if absent, extracts the first frame and saves it.
  *
- * The URL is revoked automatically when the component unmounts or the handle changes.
+ * dirHandle is kept in a ref so the latest value is always available inside
+ * async callbacks without causing the effect to re-run (and revoke/recreate
+ * blob URLs) every time the directory changes.
  */
 export function useThumbnails(
   fileHandle?: FileSystemFileHandle,
   dirHandle?: FileSystemDirectoryHandle
 ) {
   const [url, setUrl] = useState<string | null>(null);
+
+  // Always up-to-date without being a dep of the effect
+  const dirHandleRef = useRef<FileSystemDirectoryHandle | undefined>(dirHandle);
+  dirHandleRef.current = dirHandle;
 
   useEffect(() => {
     if (!fileHandle) return;
@@ -40,9 +46,10 @@ export function useThumbnails(
       }
 
       // Video: try loading persisted sidecar thumbnail first
-      if (dirHandle) {
+      const dir = dirHandleRef.current;
+      if (dir) {
         try {
-          const thumbHandle = await dirHandle.getFileHandle(thumbnailSidecarName);
+          const thumbHandle = await dir.getFileHandle(thumbnailSidecarName);
           const thumbFile = await thumbHandle.getFile();
           if (!isActive) return;
           thumbUrl = URL.createObjectURL(thumbFile);
@@ -80,10 +87,11 @@ export function useThumbnails(
             // Release the full video blob URL — we only needed the frame
             if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
 
-            // Persist the thumbnail sidecar for next time
-            if (dirHandle) {
+            // Persist using the LATEST dirHandle from the ref (not a stale closure)
+            const saveDir = dirHandleRef.current;
+            if (saveDir) {
               try {
-                const sidecarHandle = await dirHandle.getFileHandle(thumbnailSidecarName, { create: true });
+                const sidecarHandle = await saveDir.getFileHandle(thumbnailSidecarName, { create: true });
                 const writable = await (sidecarHandle as any).createWritable();
                 await writable.write(blob);
                 await writable.close();
@@ -110,7 +118,7 @@ export function useThumbnails(
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (thumbUrl) URL.revokeObjectURL(thumbUrl);
     };
-  }, [fileHandle, dirHandle]);
+  }, [fileHandle]); // dirHandle intentionally excluded — accessed via ref
 
   return url;
 }
