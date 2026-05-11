@@ -65,6 +65,7 @@ export interface NavigateOptions {
 export interface AppRef {
   navigate: (pathStr: string, options?: NavigateOptions) => Promise<void>;
   setRoot: (handle: FileSystemDirectoryHandle) => Promise<void>;
+  getCurrentDirectoryHandle: () => FileSystemDirectoryHandle | null;
 }
 
 const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false }, ref) => {
@@ -434,6 +435,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       },
       setRoot: async (handle: FileSystemDirectoryHandle) => {
           await scanAndSetDirectory(handle, true);
+      },
+      getCurrentDirectoryHandle: () => {
+          const stack = pathStackRef.current;
+          return stack.length > 0 ? stack[stack.length - 1] : null;
       }
   }));
 

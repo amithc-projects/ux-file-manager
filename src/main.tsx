@@ -82,6 +82,12 @@ class SidekickManager extends HTMLElement {
     if (this.appRef.current) this.appRef.current.setRoot(handle);
   }
 
+  /** Returns the FileSystemDirectoryHandle for the currently viewed folder (may be a subfolder). */
+  getDirectoryHandle(): FileSystemDirectoryHandle | null {
+    if (this.appRef.current) return (this.appRef.current as any).getCurrentDirectoryHandle?.() ?? null;
+    return null;
+  }
+
   /** Re-run the transform compare render on the currently active file. */
   triggerProcess() {
     if (this._triggerProcessRef.current) this._triggerProcessRef.current();
