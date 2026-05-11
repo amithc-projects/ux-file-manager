@@ -83,8 +83,9 @@ class SidekickManager extends HTMLElement {
 
   // ── Methods ───────────────────────────────────────────────────────────────
 
-  navigate(path: string, options?: any) {
-    if (this.appRef.current) this.appRef.current.navigate(path, options);
+  navigate(path: string, options?: any): Promise<void> {
+    if (this.appRef.current) return this.appRef.current.navigate(path, options) ?? Promise.resolve();
+    return Promise.resolve();
   }
 
   setRoot(handle: any) {
