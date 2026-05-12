@@ -177,7 +177,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
   useEffect(() => {
      if (onTelemetry && pathStack.length > 0) {
-        onTelemetry('sidekick:workspace', { folderName: pathStack[pathStack.length - 1].name, pathLength: pathStack.length });
+        onTelemetry('sidekick:workspace', { folderName: pathStack[pathStack.length - 1].name, pathLength: pathStack.length, pathNames: pathStack.map(h => h.name) });
      }
   }, [pathStack, onTelemetry]);
 
