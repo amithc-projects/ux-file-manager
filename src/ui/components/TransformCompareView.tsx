@@ -93,9 +93,8 @@ function StripThumb({
       className="flex flex-col gap-1 shrink-0 cursor-pointer select-none"
       style={{ width: 88 }}
     >
-      <div className={`relative w-[88px] h-[88px] rounded-md overflow-hidden border-2 flex items-center justify-center bg-[#111] transition-all ${
-        isSelected ? 'border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.5)]' : 'border-transparent opacity-60 hover:opacity-100'
-      }`}>
+      <div className={`relative w-[88px] h-[88px] rounded-md overflow-hidden border-2 flex items-center justify-center bg-[#111] transition-all ${isSelected ? 'border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.5)]' : 'border-transparent opacity-60 hover:opacity-100'
+        }`}>
         {renderThumb()}
         {isVideo && (
           <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-0.5 pointer-events-none">
@@ -334,11 +333,11 @@ export function TransformCompareView({
       </div>
 
       {/* Thumbnail strip */}
-      <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 128 }}>
+      <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 160, minHeight: 160, flexBasis: 160 }}>
         <div
           ref={stripRef}
           onScroll={handleScroll}
-          className="h-full flex gap-2 px-3 py-2 overflow-x-auto overflow-y-hidden items-start"
+          className="h-full flex gap-2 px-3 pt-2 pb-6 overflow-x-auto overflow-y-hidden items-start"
           style={{ scrollbarWidth: 'thin' }}
         >
           {allItems.map(item => {

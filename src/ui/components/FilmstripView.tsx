@@ -289,11 +289,11 @@ export function FilmstripView({
       </div>
 
       {/* ── Strip ─────────────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 148 }}>
+      <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 160, minHeight: 160, flexBasis: 160 }}>
         <div
           ref={stripRef}
           onScroll={handleScroll}
-          className="h-full flex gap-2 px-3 py-3 overflow-x-auto overflow-y-hidden items-start"
+          className="h-full flex gap-2 px-3 pt-3 pb-6 overflow-x-auto overflow-y-hidden items-start"
           style={{ scrollbarWidth: 'thin' }}
         >
           {allItems.map((item) => {

@@ -806,7 +806,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter, allowedFilesSet, allowedTypesSet]);
 
   return (
-    <div className="h-screen flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
+    <div className="w-full h-full flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
       {/* ── Two-row header ───────────────────────────────────────────────────── */}
       <header className="border-b border-dark-700 bg-dark-800 shrink-0 relative z-40 shadow-sm select-none">
 
