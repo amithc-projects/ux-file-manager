@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { GridItem } from '../../core/models/FilePair';
 import { FileViewer } from './FileViewer';
 
@@ -7,36 +7,49 @@ interface PreviewModalProps {
   item: GridItem;
   forceText?: boolean;
   onClose: () => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
   onSaveNewFile?: (blob: Blob, name: string, options?: {overwriteOriginal?: boolean}) => Promise<void>;
 }
 
-export function PreviewModal({ item, forceText, onClose, onSaveNewFile }: PreviewModalProps) {
+export function PreviewModal({ item, forceText, onClose, onNavigate, hasPrev, hasNext, onSaveNewFile }: PreviewModalProps) {
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
 
-  // Close on Escape — standard lightbox affordance
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+      else if (e.key === 'ArrowLeft' && onNavigate) { e.preventDefault(); onNavigate('prev'); }
+      else if (e.key === 'ArrowRight' && onNavigate) { e.preventDefault(); onNavigate('next'); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, onNavigate]);
 
   if (item.type !== 'file') return null;
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md" onClick={handleBackdropClick}>
-      
+
       <div className="absolute top-4 right-4 flex items-center gap-4 z-50">
         <button onClick={onClose} className="p-3 bg-dark-800/80 hover:bg-dark-700/80 rounded-full transition-colors text-gray-300 hover:text-white border border-dark-600/50 shadow-2xl">
           <X size={24} />
         </button>
       </div>
+
+      {onNavigate && hasPrev && (
+        <button onClick={() => onNavigate('prev')} className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-dark-800/80 hover:bg-dark-700/80 rounded-full transition-colors text-gray-300 hover:text-white border border-dark-600/50 shadow-2xl">
+          <ChevronLeft size={28} />
+        </button>
+      )}
+
+      {onNavigate && hasNext && (
+        <button onClick={() => onNavigate('next')} className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-dark-800/80 hover:bg-dark-700/80 rounded-full transition-colors text-gray-300 hover:text-white border border-dark-600/50 shadow-2xl">
+          <ChevronRight size={28} />
+        </button>
+      )}
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 bg-dark-900/80 border border-dark-700 shadow-2xl backdrop-blur-lg rounded-2xl pointer-events-none z-50">
         <div className="flex flex-col items-center">

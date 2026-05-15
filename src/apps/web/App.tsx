@@ -177,7 +177,13 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
   useEffect(() => {
      if (onTelemetry && pathStack.length > 0) {
-        onTelemetry('sidekick:workspace', { folderName: pathStack[pathStack.length - 1].name, pathLength: pathStack.length, pathNames: pathStack.map(h => h.name) });
+        onTelemetry('sidekick:workspace', {
+           folderName: pathStack[pathStack.length - 1].name,
+           pathLength: pathStack.length,
+           pathNames: pathStack.map(h => h.name),
+           rootHandle: pathStack[0],
+           currentHandle: pathStack[pathStack.length - 1]
+        });
      }
   }, [pathStack, onTelemetry]);
 
@@ -805,6 +811,127 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     return Object.entries(groupsMap).filter(([_, arr]) => arr.length > 0).map(([groupName, items]) => ({ groupName, items }));
   }, [items, pathStack, searchQuery, sortBy, sortAsc, groupBy, customSort, typeFilter, allowedFilesSet, allowedTypesSet]);
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if typing in an input/textarea
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) return;
+
+      const flatItems = processedGroups.flatMap(g => g.items);
+      const flatIds = flatItems.map(i => i.type === 'file' ? i.pair.id : i.name);
+      if (flatItems.length === 0) return;
+
+      const currentSelectedId = selectedIdsArray.filter(Boolean).pop() || lastClickedIdRef.current;
+
+      // A) Ctrl+A or Cmd+A
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const filesOnly = flatItems.filter(i => i.type === 'file');
+        const fileIds = filesOnly.map(i => i.pair.id);
+        
+        if (selectedIds.size === 0 || (selectedIds.size > 0 && selectedIds.size < fileIds.length)) {
+          // Select all files (not folders)
+          setSelectedIdsArray(fileIds);
+        } else if (selectedIds.size === fileIds.length && flatItems.length > fileIds.length) {
+          // If all files are selected, but there are folders, select ALL items including folders
+          setSelectedIdsArray(flatIds);
+        } else {
+          // If all items are selected (or all files and there are no folders), select None
+          clearSelection();
+        }
+        return;
+      }
+
+      // B) Backspace or Delete
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          setDeleteModalOpen(true);
+        }
+        return;
+      }
+
+      // C) Cursor navigation
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        let currentIndex = -1;
+        if (currentSelectedId) {
+          currentIndex = flatIds.indexOf(currentSelectedId as string);
+        } else {
+          // If no selection, select the first item
+          currentIndex = 0;
+          setSelectedIdsArray([flatIds[0]]);
+          lastClickedIdRef.current = flatIds[0];
+          return;
+        }
+        
+        let nextIndex = currentIndex;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          nextIndex = currentIndex < flatIds.length - 1 ? currentIndex + 1 : currentIndex;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+        }
+        
+        if (nextIndex !== -1 && nextIndex !== currentIndex) {
+          const nextId = flatIds[nextIndex];
+          if (e.shiftKey) {
+             if (lastClickedIdRef.current) {
+                const fromIdx = flatIds.indexOf(lastClickedIdRef.current);
+                const toIdx = nextIndex;
+                if (fromIdx !== -1) {
+                  const start = Math.min(fromIdx, toIdx);
+                  const end = Math.max(fromIdx, toIdx);
+                  setSelectedIdsArray(flatIds.slice(start, end + 1));
+                }
+             }
+          } else {
+             setSelectedIdsArray([nextId]);
+             lastClickedIdRef.current = nextId;
+          }
+        }
+        return;
+      }
+
+      // D) Space / Shift+Space / Ctrl+Space
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (currentSelectedId) {
+          const id = currentSelectedId as string;
+          if (e.shiftKey && lastClickedIdRef.current) {
+            const fromIdx = flatIds.indexOf(lastClickedIdRef.current);
+            const toIdx = flatIds.indexOf(id);
+            if (fromIdx !== -1 && toIdx !== -1) {
+              const start = Math.min(fromIdx, toIdx);
+              const end = Math.max(fromIdx, toIdx);
+              setSelectedIdsArray(flatIds.slice(start, end + 1));
+            }
+          } else if (e.metaKey || e.ctrlKey) {
+            lastClickedIdRef.current = id;
+            toggleSelection(id, false, true, e.altKey, () => new Promise(r => setGapPrompt({ id, resolve: r })));
+          } else {
+            lastClickedIdRef.current = id;
+            toggleSelection(id, false, false, e.altKey, () => new Promise(r => setGapPrompt({ id, resolve: r })));
+          }
+        }
+        return;
+      }
+
+      // E) Enter (Double Click)
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (currentSelectedId) {
+          const item = flatItems.find(i => (i.type === 'file' ? i.pair.id : i.name) === currentSelectedId);
+          if (item) {
+             handleItemDoubleClick(item, { stopPropagation: () => {} } as any);
+          }
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [processedGroups, selectedIdsArray, selectedIds, clearSelection, toggleSelection, handleItemDoubleClick]);
+
   return (
     <div className="w-full h-full flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
       {/* ── Two-row header ───────────────────────────────────────────────────── */}
@@ -1034,146 +1161,150 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         </div>
 
         {/* Row 2: Sort/Group controls + view mode OR action bar when items selected */}
-        <div className="flex items-center px-3 h-10 gap-2">
-          {(selectedIds.size > 0 || clipboardItems.length > 0) ? (
-            /* ── Action bar (replaces sort controls when something is selected) ── */
-            <div className="flex items-center gap-1 w-full">
-              {selectedIds.size > 0 && (
-                <>
-                  <span className="px-2 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap mr-1">{selectedIds.size} Selected</span>
-                  {selectedIds.size === 2 && (
+        <div className="flex items-center px-3 h-10 gap-2 w-full">
+          
+          {/* Sort & Group always visible on the left */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Sort */}
+            <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600">
+              <span className="text-gray-500">Sort:</span>
+              <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
+                <option value="name" className="bg-dark-800">Name</option>
+                <option value="type" className="bg-dark-800">Type</option>
+                <option value="date" className="bg-dark-800">Date</option>
+                <option value="size" className="bg-dark-800">Size</option>
+              </select>
+              <button onClick={() => setSortAsc(!sortAsc)} className="p-0.5 text-gray-400 hover:text-white rounded transition-colors" title={sortAsc ? 'Ascending' : 'Descending'}>
+                {sortAsc ? <SortAsc size={13} /> : <SortDesc size={13} />}
+              </button>
+            </div>
+
+            {/* Group */}
+            <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600">
+              <span className="text-gray-500">Group:</span>
+              <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={groupBy} onChange={e => setGroupBy(e.target.value as GroupBy)}>
+                <option value="none" className="bg-dark-800">None</option>
+                <option value="type" className="bg-dark-800">Type</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Middle section: Action bar OR Type filters */}
+          <div className="flex-1 flex items-center justify-center min-w-0 overflow-x-auto no-scrollbar gap-1">
+            {(selectedIds.size > 0 || clipboardItems.length > 0) ? (
+              /* ── Action bar ── */
+              <div className="flex items-center gap-1 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600 w-max max-w-full">
+                {selectedIds.size > 0 && (
+                  <>
+                    <span className="px-2 text-xs font-bold text-white border-r border-dark-600 whitespace-nowrap mr-1">{selectedIds.size} Selected</span>
+                    {selectedIds.size === 2 && (
+                      <button onClick={() => {
+                        const arr = selectedIdsArray.filter(Boolean);
+                        const iL = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[0]);
+                        const iR = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[1]);
+                        if (iL && iR) setCompareActive({ left: iL, right: iR });
+                      }} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-green-400 rounded text-xs font-medium text-gray-300 transition-colors">
+                        <CompareIcon size={13} /> Compare
+                      </button>
+                    )}
+                    <button onClick={() => {
+                      setClipboardItems(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)));
+                      _setClipboardAction('copy');
+                      clearSelection();
+                    }} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-white rounded text-xs font-medium text-gray-300 transition-colors">
+                      <Copy size={13} /> Copy
+                    </button>
                     <button onClick={() => {
                       const arr = selectedIdsArray.filter(Boolean);
-                      const iL = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[0]);
-                      const iR = items.find(i => (i.type === 'file' ? i.pair.id : i.name) === arr[1]);
-                      if (iL && iR) setCompareActive({ left: iL, right: iR });
-                    }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
-                      <CompareIcon size={14} /> Compare
+                      const selImages = items.filter(i => {
+                        if (i.type !== 'file') return false;
+                        return arr.includes(i.pair.id) && /\.(jpe?g|png|gif|svg|webp|bmp)$/i.test(i.pair.id);
+                      });
+                      if (selImages.length > 0) setSlideshowItems(selImages);
+                    }} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-blue-400 rounded text-xs font-medium text-gray-300 transition-colors">
+                      <Play size={13} /> Slideshow
                     </button>
-                  )}
-                  <button onClick={() => {
-                    setClipboardItems(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)));
-                    _setClipboardAction('copy');
-                    clearSelection();
-                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-dark-700 rounded-lg text-sm font-medium transition-colors">
-                    <Copy size={14} /> Copy
-                  </button>
-                  <button onClick={() => {
-                    const arr = selectedIdsArray.filter(Boolean);
-                    const selImages = items.filter(i => {
-                      if (i.type !== 'file') return false;
-                      return arr.includes(i.pair.id) && /\.(jpe?g|png|gif|svg|webp|bmp)$/i.test(i.pair.id);
-                    });
-                    if (selImages.length > 0) setSlideshowItems(selImages);
-                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-sm font-medium transition-colors">
-                    <Play size={14} /> Slideshow
-                  </button>
-                  <button onClick={async () => {
-                    const arr = (selectedIdsArray.filter(Boolean) as string[]);
-                    const selFiles = items.filter(i => i.type === 'file' && arr.includes(i.pair.id)) as Extract<GridItem, { type: 'file' }>[];
-                    if (selFiles.length === 0) return;
-                    try {
-                      if (selFiles.length === 1) {
-                        const file = await selFiles[0].pair.mainHandle.getFile();
-                        const url = URL.createObjectURL(file);
-                        const a = document.createElement('a');
-                        a.href = url; a.download = file.name;
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      } else {
-                        const zip = new JSZip();
-                        for (const item of selFiles) {
-                          const f = await item.pair.mainHandle.getFile();
-                          zip.file(item.pair.id, f);
-                          if (item.pair.sidecarHandle) {
-                            const sc = await item.pair.sidecarHandle.getFile();
-                            zip.file(item.pair.sidecarHandle.name, sc);
+                    <button onClick={async () => {
+                      const arr = (selectedIdsArray.filter(Boolean) as string[]);
+                      const selFiles = items.filter(i => i.type === 'file' && arr.includes(i.pair.id)) as Extract<GridItem, { type: 'file' }>[];
+                      if (selFiles.length === 0) return;
+                      try {
+                        if (selFiles.length === 1) {
+                          const file = await selFiles[0].pair.mainHandle.getFile();
+                          const url = URL.createObjectURL(file);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = file.name;
+                          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        } else {
+                          const zip = new JSZip();
+                          for (const item of selFiles) {
+                            const f = await item.pair.mainHandle.getFile();
+                            zip.file(item.pair.id, f);
+                            if (item.pair.sidecarHandle) {
+                              const sc = await item.pair.sidecarHandle.getFile();
+                              zip.file(item.pair.sidecarHandle.name, sc);
+                            }
                           }
+                          const blob = await zip.generateAsync({ type: 'blob' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = 'sidekick_download.zip';
+                          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
                         }
-                        const blob = await zip.generateAsync({ type: 'blob' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url; a.download = 'sidekick_download.zip';
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        console.error('[sidekick] download failed:', err);
+                        if (onTelemetry) onTelemetry('sidekick:error', { code: 'DOWNLOAD_FAILED', message: (err as any)?.message });
                       }
-                    } catch (err) {
-                      console.error('[sidekick] download failed:', err);
-                      if (onTelemetry) onTelemetry('sidekick:error', { code: 'DOWNLOAD_FAILED', message: (err as any)?.message });
-                    }
-                  }} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-green-500/20 hover:text-green-400 rounded-lg text-sm font-medium transition-colors">
-                    <Download size={14} /> Download
-                  </button>
-                  {allSelectionActions.map((action, i) => (
-                    <button
-                      key={i}
-                      onClick={() => action.onClick(selectedIdsArray.filter(Boolean) as string[])}
-                      className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-purple-500/20 hover:text-purple-400 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      {action.icon && <span>{action.icon}</span>}
-                      {action.label}
+                    }} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-green-400 rounded text-xs font-medium text-gray-300 transition-colors">
+                      <Download size={13} /> Download
                     </button>
-                  ))}
-                  <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-sm font-medium transition-colors">
-                    <Trash2 size={14} /> Delete
-                  </button>
-                  <button onClick={clearSelection} className="p-1.5 hover:bg-dark-700 rounded-lg text-gray-500 hover:text-white transition-colors ml-1" title="Clear selection">
-                    <X size={14} />
-                  </button>
-                </>
-              )}
-              {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-5 bg-dark-600 mx-1" />}
-              {clipboardItems.length > 0 && (
-                <>
-                  <span className="px-2 text-sm font-bold text-white border-r border-dark-600 whitespace-nowrap">{clipboardItems.length} Copied</span>
-                  <button onClick={executePasteClipboard} className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-medium transition-colors border border-blue-500/30">
-                    <ClipboardPaste size={14} /> Paste Here
-                  </button>
-                  <button onClick={() => setClipboardItems([])} className="p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors ml-1" title="Clear clipboard">
-                    <X size={14} />
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            /* ── Normal row 2: sort + group + view mode ── */
-            <>
-              {/* Sort */}
-              <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600 shrink-0">
-                <span className="text-gray-500">Sort:</span>
-                <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
-                  <option value="name" className="bg-dark-800">Name</option>
-                  <option value="type" className="bg-dark-800">Type</option>
-                  <option value="date" className="bg-dark-800">Date</option>
-                  <option value="size" className="bg-dark-800">Size</option>
-                </select>
-                <button onClick={() => setSortAsc(!sortAsc)} className="p-0.5 text-gray-400 hover:text-white rounded transition-colors" title={sortAsc ? 'Ascending' : 'Descending'}>
-                  {sortAsc ? <SortAsc size={13} /> : <SortDesc size={13} />}
-                </button>
+                    {allSelectionActions.map((action, i) => (
+                      <button
+                        key={i}
+                        onClick={() => action.onClick(selectedIdsArray.filter(Boolean) as string[])}
+                        className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-purple-400 rounded text-xs font-medium text-gray-300 transition-colors"
+                      >
+                        {action.icon && <span>{action.icon}</span>}
+                        {action.label}
+                      </button>
+                    ))}
+                    <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-red-400 rounded text-xs font-medium text-gray-300 transition-colors">
+                      <Trash2 size={13} /> Delete
+                    </button>
+                    <button onClick={clearSelection} className="p-1 hover:bg-dark-700 rounded-lg text-gray-500 hover:text-white transition-colors ml-1" title="Clear selection">
+                      <X size={13} />
+                    </button>
+                  </>
+                )}
+                {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-4 bg-dark-600 mx-1" />}
+                {clipboardItems.length > 0 && (
+                  <>
+                    <span className="px-2 text-xs font-bold text-white border-r border-dark-600 whitespace-nowrap">{clipboardItems.length} Copied</span>
+                    <button onClick={executePasteClipboard} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-blue-400 rounded text-xs font-medium text-gray-300 transition-colors">
+                      <ClipboardPaste size={13} /> Paste Here
+                    </button>
+                    <button onClick={() => setClipboardItems([])} className="p-1 hover:bg-dark-700 hover:text-red-400 rounded-lg transition-colors ml-1" title="Clear clipboard">
+                      <X size={13} />
+                    </button>
+                  </>
+                )}
               </div>
-
-              {/* Group */}
-              <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600 shrink-0">
-                <span className="text-gray-500">Group:</span>
-                <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={groupBy} onChange={e => setGroupBy(e.target.value as GroupBy)}>
-                  <option value="none" className="bg-dark-800">None</option>
-                  <option value="type" className="bg-dark-800">Type</option>
-                </select>
-              </div>
-
-              {/* Type filter buttons */}
-              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+            ) : (
+              /* ── Normal Type filters ── */
+              <div className="w-full">
                 <TypeFilters items={items} active={typeFilter} onChange={setTypeFilter} allowedTypes={allowedTypes} />
               </div>
+            )}
+          </div>
 
-              {/* View mode */}
-              <div className="flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0">
-                <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
-                <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
-                <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
-              </div>
-            </>
-          )}
+          {/* View mode */}
+          <div className="flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0 ml-auto">
+            <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
+            <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
+            <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
+          </div>
         </div>
       </header>
 
@@ -1340,10 +1471,20 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
          </div>
       )}
 
-      {previewItem && <PreviewModal 
-         item={previewItem.item} 
-         forceText={previewItem.forceText} 
-         onClose={() => setPreviewItem(null)} 
+      {previewItem && (() => {
+         const previewFileItems = processedGroups.flatMap(g => g.items).filter((i): i is Extract<GridItem, { type: 'file' }> => i.type === 'file');
+         const currentId = previewItem.item.type === 'file' ? previewItem.item.pair.id : '';
+         const previewIdx = previewFileItems.findIndex(i => i.pair.id === currentId);
+         return <PreviewModal
+         item={previewItem.item}
+         forceText={previewItem.forceText}
+         onClose={() => setPreviewItem(null)}
+         onNavigate={(direction) => {
+           const next = previewFileItems[previewIdx + (direction === 'next' ? 1 : -1)];
+           if (next) setPreviewItem({ item: next });
+         }}
+         hasPrev={previewIdx > 0}
+         hasNext={previewIdx < previewFileItems.length - 1}
          onSaveNewFile={async (blob, name, options) => {
             const targetDir = pathStack[pathStack.length - 1];
             if (!targetDir) return;
@@ -1366,8 +1507,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                await refreshCurrentDirectory();
             }
          }}
-      />}
-      
+      />;
+      })()}
+
       {compareActive && compareActive.left.type === 'file' && compareActive.right.type === 'file' && (
          <CompareModal itemLeft={compareActive.left} itemRight={compareActive.right} onClose={() => setCompareActive(null)} />
       )}

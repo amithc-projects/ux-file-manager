@@ -149,7 +149,7 @@ class SidekickManager extends HTMLElement {
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
-    style.textContent = tailwindCss;
+    style.textContent = `:host { display: block; height: 100%; width: 100%; }\n` + tailwindCss;
     shadow.appendChild(style);
 
     const mountPoint = document.createElement('div');
