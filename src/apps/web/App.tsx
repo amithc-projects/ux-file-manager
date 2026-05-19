@@ -1383,6 +1383,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               customControlsHtml={customControlsHtml}
               onBindCustomControls={onBindCustomControls}
               triggerProcessRef={triggerProcessRef}
+              viewMode={viewMode}
             />
           ) : viewMode === 'filmstrip' ? (
             <FilmstripView
@@ -1468,6 +1469,11 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             )}
             <button onClick={() => { setLeftCompareItem(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><CompareIcon size={14}/> Set as L Compare</button>
             <button onClick={() => { if (leftCompareItem) setCompareActive({ left: leftCompareItem, right: contextMenu.item }); closeContext(); }} disabled={!leftCompareItem} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left disabled:opacity-50 disabled:hover:bg-transparent"><CompareIcon size={14}/> Compare with L</button>
+            {contextMenu.item.type === 'file' && selectionActions.map((action, i) => (
+               <button key={i} onClick={() => { action.onClick([(contextMenu.item as any).pair?.id ?? (contextMenu.item as any).name ?? '']); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-purple-600 hover:text-white transition-colors text-left">
+                  {action.icon && <span>{action.icon}</span>}{action.label}
+               </button>
+            ))}
          </div>
       )}
 

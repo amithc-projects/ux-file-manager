@@ -1,8 +1,17 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces, FileText, FileCode, Archive, Hash } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
+
+const CodeTextIcon = ({ text, className, size }: { text: string, className: string, size: number }) => (
+  <div 
+    style={{ width: size, height: size, fontSize: size * 0.35 }} 
+    className={`flex items-center justify-center font-mono font-bold border-2 rounded-lg pointer-events-none ${className}`}
+  >
+    {text}
+  </div>
+);
 
 interface GalleryViewProps {
   groups: GroupedItems[];
@@ -27,6 +36,20 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
     const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
     const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
     const isJson  = isFile && /\.json$/i.test(itemName);
+    const isMd = isFile && /\.(md|markdown|txt)$/i.test(itemName);
+    const isArchive = isFile && /\.zip$/i.test(itemName);
+    const isPdf = isFile && /\.pdf$/i.test(itemName);
+    
+    const isHtml = isFile && /\.html?$/i.test(itemName);
+    const isJsx = isFile && /\.jsx$/i.test(itemName);
+    const isTsx = isFile && /\.tsx$/i.test(itemName);
+    const isJs = isFile && /\.js$/i.test(itemName);
+    const isTs = isFile && /\.ts$/i.test(itemName);
+    const isCss = isFile && /\.css$/i.test(itemName);
+    const isPy = isFile && /\.py$/i.test(itemName);
+    const isSh = isFile && /\.sh$/i.test(itemName);
+    const isOtherCode = isFile && /\.(csv)$/i.test(itemName);
+
     const thumbnailUrl = useThumbnails(pair?.mainHandle, pair?.thumbnailHandle);
 
     const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,6 +73,21 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
         if (isVideo) return <Film size={24} className="text-gray-500 pointer-events-none" />;
         if (isAudio) return <Music size={24} className="text-purple-500 pointer-events-none" />;
         if (isJson)  return <Braces size={24} className="text-amber-400/90 pointer-events-none" />;
+        if (isMd)    return <FileText size={24} className="text-blue-400 pointer-events-none" />;
+        if (isArchive) return <Archive size={24} className="text-orange-500 pointer-events-none" />;
+        if (isPdf)   return <FileText size={24} className="text-red-500 pointer-events-none" />;
+
+        // Code specific icons
+        if (isHtml) return <FileCode size={24} className="text-orange-500 pointer-events-none" />;
+        if (isJsx) return <FileCode size={24} className="text-cyan-400 pointer-events-none" />;
+        if (isTsx) return <FileCode size={24} className="text-blue-500 pointer-events-none" />;
+        if (isSh) return <Hash size={24} className="text-gray-400 pointer-events-none" />;
+        if (isJs) return <CodeTextIcon text="JS" className="border-yellow-500/30 text-yellow-500 bg-yellow-500/10" size={24} />;
+        if (isTs) return <CodeTextIcon text="TS" className="border-blue-500/30 text-blue-500 bg-blue-500/10" size={24} />;
+        if (isCss) return <CodeTextIcon text="CSS" className="border-pink-500/30 text-pink-500 bg-pink-500/10" size={24} />;
+        if (isPy) return <CodeTextIcon text="PY" className="border-green-500/30 text-green-500 bg-green-500/10" size={24} />;
+        if (isOtherCode) return <FileCode size={24} className="text-gray-400 pointer-events-none" />;
+
         return <FileIcon size={24} className="text-gray-500 pointer-events-none" />;
     };
 

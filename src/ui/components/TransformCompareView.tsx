@@ -25,7 +25,10 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { Folder, Film, FileIcon, Image as ImageIcon, Music, Check, Play, Info, Loader2, SplitSquareHorizontal } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Music, Check, Play, Info, Loader2, SplitSquareHorizontal, Columns2, GalleryHorizontal, MoveHorizontal } from 'lucide-react';
+
+type CompareLayout = 'side-by-side' | 'slider';
+type ViewMode = 'grid' | 'filmstrip' | 'list';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,6 +57,8 @@ export interface TransformCompareViewProps {
   onBindCustomControls?: (container: HTMLDivElement) => void;
   /** Exposed via useImperativeHandle so parent can call triggerProcess() */
   triggerProcessRef?: React.MutableRefObject<(() => void) | null>;
+  /** Controls how the thumbnail strip renders (passed from App viewMode state) */
+  viewMode?: ViewMode;
 }
 
 // ── Thumbnail chip ────────────────────────────────────────────────────────────
@@ -115,14 +120,17 @@ function StripThumb({
 // ── Before/After viewer ───────────────────────────────────────────────────────
 
 function CompareViewer({
-  result, loading, focusedFile,
+  result, loading, focusedFile, layout,
   onCompareInfo,
 }: {
   result: CompareRenderResult | null;
   loading: boolean;
   focusedFile: File | null;
+  layout: CompareLayout;
   onCompareInfo?: (file: File) => Promise<void>;
 }) {
+  const [sliderPos, setSliderPos] = useState(50);
+
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-black">
@@ -153,6 +161,47 @@ function CompareViewer({
     );
   }
 
+  if (layout === 'slider') {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+        {result.afterUrl && <img src={result.afterUrl} className="absolute max-w-full max-h-full object-contain pointer-events-none" alt="after" />}
+        {result.beforeUrl && (
+          <img
+            src={result.beforeUrl}
+            className="absolute max-w-full max-h-full object-contain pointer-events-none"
+            style={{ clipPath: `polygon(0% 0%, ${sliderPos}% 0%, ${sliderPos}% 100%, 0% 100%)` }}
+            alt="before"
+          />
+        )}
+        <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none z-10">
+          {result.beforeLabel ?? 'Before'}
+        </div>
+        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none z-10">
+          {result.afterLabel ?? 'After'}
+        </div>
+        <input
+          type="range" min="0" max="100"
+          value={sliderPos}
+          onChange={e => setSliderPos(Number(e.target.value))}
+          className="absolute inset-x-0 bottom-1/2 translate-y-1/2 w-full h-full opacity-0 cursor-ew-resize z-20"
+        />
+        <div
+          className="absolute inset-y-0 w-0.5 bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)] z-10 pointer-events-none"
+          style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white text-white">
+            <MoveHorizontal size={14} />
+          </div>
+        </div>
+        {onCompareInfo && focusedFile && (
+          <button onClick={() => onCompareInfo(focusedFile)} className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-blue-600 text-white rounded-full transition-colors z-30" title="File info">
+            <Info size={14} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex bg-black overflow-hidden">
       {/* Before */}
@@ -175,7 +224,6 @@ function CompareViewer({
         <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
           {result.afterLabel ?? 'After'}
         </div>
-        {/* Info button */}
         {onCompareInfo && focusedFile && (
           <button
             onClick={() => onCompareInfo(focusedFile)}
@@ -203,8 +251,10 @@ export function TransformCompareView({
   customControlsHtml,
   onBindCustomControls,
   triggerProcessRef,
+  viewMode = 'filmstrip',
 }: TransformCompareViewProps) {
   const allItems = groups.flatMap(g => g.items);
+  const [compareLayout, setCompareLayout] = useState<CompareLayout>('side-by-side');
 
   // Strip scroll persistence
   const stripRef = useRef<HTMLDivElement>(null);
@@ -227,6 +277,9 @@ export function TransformCompareView({
       onBindCustomControls(controlsRef.current);
     }
   }, [customControlsHtml, onBindCustomControls]);
+
+  // Reset bind flag when controls change so rebind works on remount
+  useEffect(() => { bindCalledRef.current = false; }, [customControlsHtml]);
 
   // Focused item (first selected → first file → first item)
   const focusedId = selectedIdsArray.find(Boolean);
@@ -311,16 +364,54 @@ export function TransformCompareView({
 
   const totalSelected = selectedIdsArray.filter(Boolean).length;
 
+  const thumbItems = allItems.map(item => {
+    const id = item.type === 'file' ? item.pair.id : item.name;
+    const isSelected = selectedIdsArray.includes(id);
+    const selIdx = selectedIdsArray.indexOf(id);
+    return (
+      <StripThumb
+        key={id}
+        item={item}
+        isSelected={isSelected}
+        selectionOrderIndex={selIdx !== -1 ? selIdx + 1 : null}
+        totalSelected={totalSelected}
+        onClick={e => onItemClick(id, e)}
+        onDoubleClick={e => onItemDoubleClick(item, e)}
+        onContextMenu={e => onItemContextMenu(item, e)}
+      />
+    );
+  });
+
+  const isGridStrip = viewMode === 'grid';
+  const isListStrip = viewMode === 'list';
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
 
-      {/* Custom controls bar */}
-      {customControlsHtml && (
-        <div
-          ref={controlsRef}
-          className="shrink-0 bg-dark-800 border-b border-dark-700 px-3 py-2"
-        />
-      )}
+      {/* Toolbar: custom controls + compare layout toggle */}
+      <div className="shrink-0 bg-dark-800 border-b border-dark-700 px-3 py-2 flex items-center gap-3">
+        {/* Host-provided controls (Original / Prev Step etc.) */}
+        {customControlsHtml && <div ref={controlsRef} className="flex items-center gap-2 flex-1" />}
+        {!customControlsHtml && <div className="flex-1" />}
+
+        {/* Compare layout toggle */}
+        <div className="flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0">
+          <button
+            title="Side by Side"
+            onClick={() => setCompareLayout('side-by-side')}
+            className={`p-1.5 rounded-md transition-colors ${compareLayout === 'side-by-side' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}
+          >
+            <Columns2 size={15} />
+          </button>
+          <button
+            title="Slider Wipe"
+            onClick={() => setCompareLayout('slider')}
+            className={`p-1.5 rounded-md transition-colors ${compareLayout === 'slider' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}
+          >
+            <GalleryHorizontal size={15} />
+          </button>
+        </div>
+      </div>
 
       {/* Before/After viewer */}
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -328,37 +419,49 @@ export function TransformCompareView({
           result={compareResult}
           loading={compareLoading}
           focusedFile={focusedFile}
+          layout={compareLayout}
           onCompareInfo={onCompareInfo}
         />
       </div>
 
-      {/* Thumbnail strip */}
-      <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 160, minHeight: 160, flexBasis: 160 }}>
-        <div
-          ref={stripRef}
-          onScroll={handleScroll}
-          className="h-full flex gap-2 px-3 pt-2 pb-6 overflow-x-auto overflow-y-hidden items-start"
-          style={{ scrollbarWidth: 'thin' }}
-        >
+      {/* Thumbnail strip — layout controlled by viewMode */}
+      {isListStrip ? (
+        <div className="shrink-0 border-t border-dark-700 bg-dark-900 overflow-y-auto" style={{ maxHeight: 200 }}>
           {allItems.map(item => {
             const id = item.type === 'file' ? item.pair.id : item.name;
             const isSelected = selectedIdsArray.includes(id);
-            const selIdx = selectedIdsArray.indexOf(id);
             return (
-              <StripThumb
+              <div
                 key={id}
-                item={item}
-                isSelected={isSelected}
-                selectionOrderIndex={selIdx !== -1 ? selIdx + 1 : null}
-                totalSelected={totalSelected}
                 onClick={e => onItemClick(id, e)}
                 onDoubleClick={e => onItemDoubleClick(item, e)}
                 onContextMenu={e => onItemContextMenu(item, e)}
-              />
+                className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer text-sm truncate border-b border-dark-800 ${isSelected ? 'bg-blue-900/40 text-white' : 'text-gray-400 hover:bg-dark-800 hover:text-white'}`}
+              >
+                {isSelected && <Check size={12} className="text-blue-400 shrink-0" />}
+                <span className="truncate">{id}</span>
+              </div>
             );
           })}
         </div>
-      </div>
+      ) : isGridStrip ? (
+        <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 220, minHeight: 220 }}>
+          <div className="h-full flex flex-wrap gap-2 px-3 py-2 overflow-y-auto content-start" style={{ scrollbarWidth: 'thin' }}>
+            {thumbItems}
+          </div>
+        </div>
+      ) : (
+        <div className="shrink-0 border-t border-dark-700 bg-dark-900" style={{ height: 160, minHeight: 160, flexBasis: 160 }}>
+          <div
+            ref={stripRef}
+            onScroll={handleScroll}
+            className="h-full flex gap-2 px-3 pt-2 pb-6 overflow-x-auto overflow-y-hidden items-start"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            {thumbItems}
+          </div>
+        </div>
+      )}
 
     </div>
   );

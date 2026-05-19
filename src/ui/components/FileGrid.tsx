@@ -1,7 +1,16 @@
 import React from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
-import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play, Braces } from 'lucide-react';
+import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play, Braces, FileText, FileCode, Archive, Hash } from 'lucide-react';
+
+const CodeTextIcon = ({ text, className, size }: { text: string, className: string, size: number }) => (
+  <div 
+    style={{ width: size, height: size, fontSize: size * 0.35 }} 
+    className={`flex items-center justify-center font-mono font-bold border-2 rounded-lg pointer-events-none ${className}`}
+  >
+    {text}
+  </div>
+);
 
 /** Small play badge overlay shown on video items (bottom-left of thumbnail) */
 const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => {
@@ -72,15 +81,44 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
   const isVideo = isFile && /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(itemName);
   const isAudio = isFile && /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(itemName);
   const isJson  = isFile && /\.json$/i.test(itemName);
+  const isMd = isFile && /\.(md|markdown|txt)$/i.test(itemName);
+  const isArchive = isFile && /\.zip$/i.test(itemName);
+  const isPdf = isFile && /\.pdf$/i.test(itemName);
+
+  const isHtml = isFile && /\.html?$/i.test(itemName);
+  const isJsx = isFile && /\.jsx$/i.test(itemName);
+  const isTsx = isFile && /\.tsx$/i.test(itemName);
+  const isJs = isFile && /\.js$/i.test(itemName);
+  const isTs = isFile && /\.ts$/i.test(itemName);
+  const isCss = isFile && /\.css$/i.test(itemName);
+  const isPy = isFile && /\.py$/i.test(itemName);
+  const isSh = isFile && /\.sh$/i.test(itemName);
+  const isOtherCode = isFile && /\.(csv)$/i.test(itemName);
 
   const IconComponent = () => {
+    const s = viewMode === 'list' ? 20 : 48;
     if (!isFile) return <Folder size={viewMode === 'list' ? 24 : 64} className="text-blue-500/80 drop-shadow-md" fill="currentColor" />;
     if (thumbnailUrl) return <img src={thumbnailUrl} alt={itemName} className="w-full h-full object-cover rounded-md pointer-events-none" />;
-    if (isImage) return <ImageIcon size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
-    if (isVideo) return <Film size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
-    if (isAudio) return <Music size={viewMode === 'list' ? 20 : 48} className="text-purple-500 pointer-events-none" />;
-    if (isJson)  return <Braces size={viewMode === 'list' ? 20 : 48} className="text-amber-400/90 pointer-events-none" />;
-    return <FileIcon size={viewMode === 'list' ? 20 : 48} className="text-gray-500 pointer-events-none" />;
+    if (isImage) return <ImageIcon size={s} className="text-gray-500 pointer-events-none" />;
+    if (isVideo) return <Film size={s} className="text-gray-500 pointer-events-none" />;
+    if (isAudio) return <Music size={s} className="text-purple-500 pointer-events-none" />;
+    if (isJson)  return <Braces size={s} className="text-amber-400/90 pointer-events-none" />;
+    if (isMd)    return <FileText size={s} className="text-blue-400 pointer-events-none" />;
+    if (isArchive) return <Archive size={s} className="text-orange-500 pointer-events-none" />;
+    if (isPdf)   return <FileText size={s} className="text-red-500 pointer-events-none" />;
+    
+    // Code specific icons
+    if (isHtml) return <FileCode size={s} className="text-orange-500 pointer-events-none" />;
+    if (isJsx) return <FileCode size={s} className="text-cyan-400 pointer-events-none" />;
+    if (isTsx) return <FileCode size={s} className="text-blue-500 pointer-events-none" />;
+    if (isSh) return <Hash size={s} className="text-gray-400 pointer-events-none" />;
+    if (isJs) return <CodeTextIcon text="JS" className="border-yellow-500/30 text-yellow-500 bg-yellow-500/10" size={s} />;
+    if (isTs) return <CodeTextIcon text="TS" className="border-blue-500/30 text-blue-500 bg-blue-500/10" size={s} />;
+    if (isCss) return <CodeTextIcon text="CSS" className="border-pink-500/30 text-pink-500 bg-pink-500/10" size={s} />;
+    if (isPy) return <CodeTextIcon text="PY" className="border-green-500/30 text-green-500 bg-green-500/10" size={s} />;
+    if (isOtherCode) return <FileCode size={s} className="text-gray-400 pointer-events-none" />;
+
+    return <FileIcon size={s} className="text-gray-500 pointer-events-none" />;
   };
 
   const selectedClass = isSelected 

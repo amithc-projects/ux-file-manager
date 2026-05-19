@@ -29,6 +29,7 @@ const formatBytes = (bytes?: number) => {
 export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiffModalProps) {
   const [loading, setLoading] = useState(true);
   const [diffs, setDiffs] = useState<DiffItem[]>([]);
+  const [viewMode, setViewMode] = useState<'unified' | 'side'>('side');
 
   useEffect(() => {
     let isActive = true;
@@ -113,14 +114,23 @@ export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiff
       <div className="relative bg-dark-800 border border-dark-600 shadow-2xl rounded-2xl w-full max-w-5xl h-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700 bg-dark-900 shrink-0">
-          <div className="flex items-center gap-3">
-             <GitCompare size={20} className="text-blue-400" />
-             <h2 className="font-semibold text-lg text-gray-100 flex items-center gap-2">
+          <div className="flex items-center gap-6">
+             <h2 className="flex items-center gap-3 font-semibold text-lg text-gray-100">
+                <GitCompare size={20} className="text-blue-400" />
                 Folder Diff: 
                 <span className="text-gray-400 px-2 py-0.5 bg-dark-950 rounded text-sm font-mono border border-dark-700">{handleLeft.name}</span>
-                <span className="text-gray-600">vs</span>
+                <span className="text-gray-600 text-sm">vs</span>
                 <span className="text-gray-400 px-2 py-0.5 bg-dark-950 rounded text-sm font-mono border border-dark-700">{handleRight.name}</span>
              </h2>
+
+             <div className="flex bg-dark-950 p-1 rounded-lg border border-dark-700 shadow-inner">
+               <button onClick={() => setViewMode('unified')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'unified' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+                 Unified
+               </button>
+               <button onClick={() => setViewMode('side')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'side' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+                 Side-by-Side
+               </button>
+             </div>
           </div>
           <button onClick={onClose} className="p-2 bg-dark-800 border border-dark-700 hover:bg-dark-700 rounded-full transition-colors shrink-0">
             <X size={20} className="text-gray-300" />
@@ -134,29 +144,95 @@ export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiff
                   <span className="text-sm font-medium text-blue-400">Deep scanning handles...</span>
               </div>
            ) : (
-              <div className="flex-1 overflow-auto p-4">
+              <div className="flex-1 overflow-auto px-4 pb-4">
                  
-                 <div className="grid grid-cols-[minmax(200px,1fr)_120px_100px_100px_150px_150px] gap-2 mb-2 px-4 py-2 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-dark-700 sticky top-0 bg-dark-950 z-10">
-                    <div>Filename</div>
-                    <div>State</div>
-                    <div>Size (L)</div>
-                    <div>Size (R)</div>
-                    <div>Date (L)</div>
-                    <div>Date (R)</div>
-                 </div>
+                 {viewMode === 'unified' ? (
+                     <>
+                         <div className="grid grid-cols-[minmax(200px,1fr)_120px_100px_100px_150px_150px] gap-2 mb-2 px-4 pt-4 py-2 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-dark-700 sticky top-0 bg-dark-950 z-20">
+                            <div>Filename</div>
+                            <div>State</div>
+                            <div>Size (L)</div>
+                            <div>Size (R)</div>
+                            <div>Date (L)</div>
+                            <div>Date (R)</div>
+                         </div>
+        
+                         <div className="flex flex-col gap-1">
+                            {diffs.map((d, i) => (
+                               <div key={i} className={`grid grid-cols-[minmax(200px,1fr)_120px_100px_100px_150px_150px] gap-2 px-4 py-2 text-sm items-center border rounded-lg ${stateColors[d.state]}`}>
+                                  <div className="truncate font-medium">{d.isFolder ? `📁 ${d.name}` : `📄 ${d.name}`}</div>
+                                  <div className="font-bold tracking-wide text-xs uppercase">{d.state}</div>
+                                  <div className="font-mono text-xs">{formatBytes(d.sizeL)}</div>
+                                  <div className="font-mono text-xs">{formatBytes(d.sizeR)}</div>
+                                  <div className="font-mono text-xs truncate" title={d.dateL ? new Date(d.dateL).toLocaleString() : ''}>{d.dateL ? new Date(d.dateL).toLocaleDateString() : '--'}</div>
+                                  <div className="font-mono text-xs truncate" title={d.dateR ? new Date(d.dateR).toLocaleString() : ''}>{d.dateR ? new Date(d.dateR).toLocaleDateString() : '--'}</div>
+                               </div>
+                            ))}
+                         </div>
+                     </>
+                 ) : (
+                     <>
+                         <div className="flex gap-2 mb-2 px-4 pt-4 py-2 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-dark-700 sticky top-0 bg-dark-950 z-20">
+                            <div className="flex-1 flex justify-between px-2 min-w-0">
+                                <span className="truncate mr-2">{handleLeft.name}</span>
+                                <span className="shrink-0">Size & Date</span>
+                            </div>
+                            <div className="flex-1 flex justify-between px-2 min-w-0">
+                                <span className="truncate mr-2">{handleRight.name}</span>
+                                <span className="shrink-0">Size & Date</span>
+                            </div>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            {diffs.map((d, i) => {
+                               const hasL = d.state === 'removed' || d.state === 'modified' || d.state === 'unchanged';
+                               const hasR = d.state === 'added' || d.state === 'modified' || d.state === 'unchanged';
 
-                 <div className="flex flex-col gap-1">
-                    {diffs.map((d, i) => (
-                       <div key={i} className={`grid grid-cols-[minmax(200px,1fr)_120px_100px_100px_150px_150px] gap-2 px-4 py-2 text-sm items-center border rounded-lg ${stateColors[d.state]}`}>
-                          <div className="truncate font-medium">{d.isFolder ? `📁 ${d.name}` : `📄 ${d.name}`}</div>
-                          <div className="font-bold tracking-wide text-xs uppercase">{d.state}</div>
-                          <div className="font-mono text-xs">{formatBytes(d.sizeL)}</div>
-                          <div className="font-mono text-xs">{formatBytes(d.sizeR)}</div>
-                          <div className="font-mono text-xs truncate" title={d.dateL ? new Date(d.dateL).toLocaleString() : ''}>{d.dateL ? new Date(d.dateL).toLocaleDateString() : '--'}</div>
-                          <div className="font-mono text-xs truncate" title={d.dateR ? new Date(d.dateR).toLocaleString() : ''}>{d.dateR ? new Date(d.dateR).toLocaleDateString() : '--'}</div>
-                       </div>
-                    ))}
-                 </div>
+                               const bgL = d.state === 'removed' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+                                           d.state === 'modified' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400' :
+                                           d.state === 'unchanged' ? 'bg-dark-900 border-dark-700 text-gray-400 opacity-50' :
+                                           'bg-transparent border-transparent';
+
+                               const bgR = d.state === 'added' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
+                                           d.state === 'modified' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400' :
+                                           d.state === 'unchanged' ? 'bg-dark-900 border-dark-700 text-gray-400 opacity-50' :
+                                           'bg-transparent border-transparent';
+
+                               return (
+                                  <div key={i} className="flex gap-2 w-full min-h-[38px]">
+                                     <div className={`flex-1 flex items-center justify-between px-4 py-1.5 border rounded-lg overflow-hidden ${bgL}`}>
+                                         {hasL && (
+                                            <>
+                                               <div className="flex items-center gap-2 text-sm min-w-0 mr-4">
+                                                   <span className="shrink-0">{d.isFolder ? '📁' : '📄'}</span> 
+                                                   <span className="truncate font-medium">{d.name}</span>
+                                               </div>
+                                               <div className="flex items-center gap-3 font-mono text-[11px] opacity-80 shrink-0 whitespace-nowrap">
+                                                   <span className="w-20 text-right">{formatBytes(d.sizeL)}</span>
+                                                   <span className="w-24 text-right">{d.dateL ? new Date(d.dateL).toLocaleDateString() : '--'}</span>
+                                               </div>
+                                            </>
+                                         )}
+                                     </div>
+                                     <div className={`flex-1 flex items-center justify-between px-4 py-1.5 border rounded-lg overflow-hidden ${bgR}`}>
+                                         {hasR && (
+                                            <>
+                                               <div className="flex items-center gap-2 text-sm min-w-0 mr-4">
+                                                   <span className="shrink-0">{d.isFolder ? '📁' : '📄'}</span> 
+                                                   <span className="truncate font-medium">{d.name}</span>
+                                               </div>
+                                               <div className="flex items-center gap-3 font-mono text-[11px] opacity-80 shrink-0 whitespace-nowrap">
+                                                   <span className="w-20 text-right">{formatBytes(d.sizeR)}</span>
+                                                   <span className="w-24 text-right">{d.dateR ? new Date(d.dateR).toLocaleDateString() : '--'}</span>
+                                               </div>
+                                            </>
+                                         )}
+                                     </div>
+                                  </div>
+                               )
+                            })}
+                         </div>
+                     </>
+                 )}
 
               </div>
            )}

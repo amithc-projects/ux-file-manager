@@ -13,8 +13,17 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
-import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces } from 'lucide-react';
+import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces, FileText, FileCode, Archive, Hash } from 'lucide-react';
 import { useThumbnails } from '../hooks/useThumbnails';
+
+const CodeTextIcon = ({ text, className, size }: { text: string, className: string, size: number }) => (
+  <div 
+    style={{ width: size, height: size, fontSize: size * 0.35 }} 
+    className={`flex items-center justify-center font-mono font-bold border-2 rounded-lg pointer-events-none ${className}`}
+  >
+    {text}
+  </div>
+);
 
 interface FilmstripViewProps {
   groups: GroupedItems[];
@@ -161,6 +170,21 @@ function StripThumb({
     if (type === 'video') return <Film size={28} className="text-gray-500" />;
     if (type === 'audio') return <Music size={28} className="text-purple-500" />;
     if (/\.json$/i.test(itemName)) return <Braces size={28} className="text-amber-400/90" />;
+    if (/\.(md|markdown|txt)$/i.test(itemName)) return <FileText size={28} className="text-blue-400" />;
+    if (/\.zip$/i.test(itemName)) return <Archive size={28} className="text-orange-500" />;
+    if (/\.pdf$/i.test(itemName)) return <FileText size={28} className="text-red-500" />;
+
+    // Code specific icons
+    if (/\.html?$/i.test(itemName)) return <FileCode size={28} className="text-orange-500" />;
+    if (/\.jsx$/i.test(itemName)) return <FileCode size={28} className="text-cyan-400" />;
+    if (/\.tsx$/i.test(itemName)) return <FileCode size={28} className="text-blue-500" />;
+    if (/\.sh$/i.test(itemName)) return <Hash size={28} className="text-gray-400" />;
+    if (/\.js$/i.test(itemName)) return <CodeTextIcon text="JS" className="border-yellow-500/30 text-yellow-500 bg-yellow-500/10" size={28} />;
+    if (/\.ts$/i.test(itemName)) return <CodeTextIcon text="TS" className="border-blue-500/30 text-blue-500 bg-blue-500/10" size={28} />;
+    if (/\.css$/i.test(itemName)) return <CodeTextIcon text="CSS" className="border-pink-500/30 text-pink-500 bg-pink-500/10" size={28} />;
+    if (/\.py$/i.test(itemName)) return <CodeTextIcon text="PY" className="border-green-500/30 text-green-500 bg-green-500/10" size={28} />;
+    if (/\.csv$/i.test(itemName)) return <FileCode size={28} className="text-gray-400" />;
+
     return <FileIcon size={28} className="text-gray-500" />;
   };
 
