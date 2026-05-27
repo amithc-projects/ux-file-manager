@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Sidekick File Manager",
+  "name": "ZumiLabs File Browser",
   "version": "1.0.0",
-  "description": "Local-first browser-native professional curation engine for inspecting project directories.",
+  "description": "ZumiLabs File Browser — local-first, browser-native file management using the File System Access API.",
   "action": {
-    "default_title": "Launch Sidekick"
+    "default_title": "Launch ZumiLabs File Browser"
   },
   "side_panel": {
     "default_path": "index.html"
