@@ -1,1 +1,1 @@
-portless ux-file-manager npm run dev
+portless zumlabs-file-manager npm run dev
