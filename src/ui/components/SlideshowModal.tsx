@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Play, Pause, X, Maximize, Minimize } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, X, Maximize } from 'lucide-react';
 import { GridItem } from '../../core/models/FilePair';
 
 interface SlideshowModalProps {
@@ -20,15 +20,13 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
         if (!activeItem || activeItem.type !== 'file') return;
         let active = true;
         let objectUrl = '';
-        
         activeItem.pair.mainHandle.getFile().then(file => {
             if (!active) return;
             objectUrl = URL.createObjectURL(file);
             setCurrentUrl(objectUrl);
         });
-
-        return () => { 
-            active = false; 
+        return () => {
+            active = false;
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [activeItem]);
@@ -54,6 +52,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
                 setIsPlaying(false);
                 handlePrev();
             } else if (e.key === ' ') {
+                e.preventDefault();
                 setIsPlaying(p => !p);
             }
         };
@@ -76,40 +75,84 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
     }, []);
 
     return (
-        <div ref={containerRef} className="fixed inset-0 z-[400] bg-black flex flex-col justify-center items-center select-none group">
-            {currentUrl && <img src={currentUrl} className="w-full h-full object-contain" draggable={false} />}
-            
-            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div ref={containerRef} className="fixed inset-0 z-[400] bg-black flex flex-col select-none">
 
-            <div className="absolute top-6 right-6 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                <button onClick={toggleFullscreen} className="bg-dark-800/80 hover:bg-dark-700 text-white p-3 rounded-full backdrop-blur shadow-lg transition-transform hover:scale-110">
-                    {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-                </button>
-                <button onClick={onClose} className="bg-dark-800/80 hover:bg-red-500 text-white p-3 rounded-full backdrop-blur shadow-lg transition-transform hover:scale-110">
-                    <X size={20} />
-                </button>
+            {/* Control strip — always visible, hidden in fullscreen */}
+            {!isFullscreen && (
+                <div className="flex items-center gap-3 px-4 h-14 bg-black/90 backdrop-blur border-b border-white/10 shrink-0 z-50">
+                    {/* Counter */}
+                    <span className="text-white font-mono text-sm tabular-nums w-16">
+                        {currentIndex + 1} / {items.length}
+                    </span>
+
+                    {/* Prev */}
+                    <button
+                        onClick={() => { setIsPlaying(false); handlePrev(); }}
+                        className="text-gray-300 hover:text-white transition-colors p-1"
+                        title="Previous (←)"
+                    >
+                        <ChevronLeft size={24} />
+                    </button>
+
+                    {/* Play / Pause */}
+                    <button
+                        onClick={() => setIsPlaying(p => !p)}
+                        className="w-9 h-9 bg-white text-black flex items-center justify-center rounded-full hover:bg-gray-200 transition-transform hover:scale-105 active:scale-95 shadow-lg"
+                        title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+                    >
+                        {isPlaying
+                            ? <Pause size={16} className="fill-current" />
+                            : <Play size={16} className="fill-current ml-0.5" />}
+                    </button>
+
+                    {/* Next */}
+                    <button
+                        onClick={() => { setIsPlaying(false); handleNext(); }}
+                        className="text-gray-300 hover:text-white transition-colors p-1"
+                        title="Next (→)"
+                    >
+                        <ChevronRight size={24} />
+                    </button>
+
+                    <div className="flex-1" />
+
+                    {/* Fullscreen */}
+                    <button
+                        onClick={toggleFullscreen}
+                        className="text-gray-300 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+                        title="Fullscreen"
+                    >
+                        <Maximize size={18} />
+                    </button>
+
+                    {/* Close */}
+                    <button
+                        onClick={onClose}
+                        className="text-gray-300 hover:text-white transition-colors p-2 rounded-lg hover:bg-red-500/80"
+                        title="Close (Esc)"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+            )}
+
+            {/* Image area — fills remaining space */}
+            <div className="flex-1 flex items-center justify-center min-h-0">
+                {currentUrl && (
+                    <img
+                        src={currentUrl}
+                        className="max-w-full max-h-full object-contain"
+                        draggable={false}
+                    />
+                )}
             </div>
 
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-dark-900/80 px-8 py-4 rounded-full backdrop-blur-md border border-dark-600/50 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                <button onClick={() => { setIsPlaying(false); handlePrev(); }} className="text-gray-300 hover:text-white transition-colors hover:scale-110 transform">
-                    <ChevronLeft size={32} />
-                </button>
-                
-                <button onClick={() => setIsPlaying(!isPlaying)} className="w-14 h-14 bg-white text-black flex items-center justify-center rounded-full hover:bg-gray-200 transition-transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                    {isPlaying ? <Pause size={24} className="fill-current" /> : <Play size={24} className="fill-current ml-1" />}
-                </button>
-                
-                <button onClick={() => { setIsPlaying(false); handleNext(); }} className="text-gray-300 hover:text-white transition-colors hover:scale-110 transform">
-                    <ChevronRight size={32} />
-                </button>
-            </div>
-
-            <div className="absolute top-6 left-6 opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                <span className="bg-dark-900/80 text-white font-mono text-sm px-4 py-2 rounded-full backdrop-blur shadow-lg border border-dark-700">
-                    {currentIndex + 1} / {items.length}
-                </span>
-            </div>
+            {/* Fullscreen: minimal exit hint */}
+            {isFullscreen && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/30 text-xs pointer-events-none">
+                    Esc to exit · ← → to navigate · Space to pause
+                </div>
+            )}
         </div>
     );
 }

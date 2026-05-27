@@ -9,3 +9,59 @@
     padding: 0;
   }
 }
+
+/* ── Light mode overrides ──────────────────────────────────────────────────
+   Applied when the root element has class="light-mode".
+   Overrides the hardcoded dark Tailwind custom colors and gray text scale.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.light-mode .bg-dark-900  { background-color: #f9fafb !important; }
+.light-mode .bg-dark-800  { background-color: #ffffff !important; }
+.light-mode .bg-dark-700  { background-color: #f3f4f6 !important; }
+.light-mode .bg-dark-600  { background-color: #e5e7eb !important; }
+
+.light-mode .border-dark-700 { border-color: #e5e7eb !important; }
+.light-mode .border-dark-600 { border-color: #d1d5db !important; }
+
+.light-mode .text-white       { color: #111827 !important; }
+.light-mode .text-gray-100    { color: #111827 !important; }
+.light-mode .text-gray-200    { color: #1f2937 !important; }
+.light-mode .text-gray-300    { color: #374151 !important; }
+.light-mode .text-gray-400    { color: #6b7280 !important; }
+.light-mode .text-gray-500    { color: #9ca3af !important; }
+
+.light-mode .hover\:text-white:hover { color: #111827 !important; }
+
+/* Opacity-modifier variants of bg-dark-* (not matched by bare class rules above) */
+.light-mode .bg-dark-950      { background-color: #f3f4f6 !important; }
+.light-mode .bg-dark-900\/95  { background-color: rgba(249,250,251,0.97) !important; }
+.light-mode .bg-dark-900\/80  { background-color: rgba(249,250,251,0.85) !important; }
+.light-mode .bg-dark-900\/50  { background-color: rgba(249,250,251,0.6) !important; }
+.light-mode .bg-dark-800\/90  { background-color: rgba(255,255,255,0.92) !important; }
+.light-mode .bg-dark-800\/80  { background-color: rgba(255,255,255,0.85) !important; }
+.light-mode .bg-dark-800\/40  { background-color: rgba(255,255,255,0.4) !important; }
+.light-mode .bg-dark-700\/80  { background-color: rgba(243,244,246,0.85) !important; }
+.light-mode .bg-dark-700\/50  { background-color: rgba(243,244,246,0.6) !important; }
+.light-mode .bg-dark-500      { background-color: #d1d5db !important; }
+
+/* Hover state overrides so mousing over doesn't show dark backgrounds */
+.light-mode .hover\:bg-dark-700:hover { background-color: #e5e7eb !important; }
+.light-mode .hover\:bg-dark-600:hover { background-color: #d1d5db !important; }
+.light-mode .hover\:bg-dark-500:hover { background-color: #c4c9d4 !important; }
+
+/* Keep white text on intentionally colored/dark backgrounds */
+.light-mode .bg-blue-600 { color: #ffffff !important; }
+.light-mode .bg-blue-500 { color: #ffffff !important; }
+.light-mode .bg-indigo-600 { color: #ffffff !important; }
+.light-mode .bg-blue-600 .text-blue-200,
+.light-mode .bg-blue-600 span { color: #dbeafe !important; }
+
+/* Preserve white text inside black overlays (slideshow strip, video backgrounds) */
+.light-mode .bg-black .text-white,
+.light-mode .bg-black\/90 .text-white  { color: #ffffff !important; }
+.light-mode .bg-black .text-gray-300,
+.light-mode .bg-black\/90 .text-gray-300 { color: #d1d5db !important; }
+
+/* Yellow text becomes amber on light backgrounds */
+.light-mode .text-yellow-400 { color: #92400e !important; }
+.light-mode .text-yellow-500 { color: #78350f !important; }

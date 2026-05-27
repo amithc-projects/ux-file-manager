@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Info, Folder as FolderIcon, FileIcon, Settings, ChevronRight } from 'lucide-react';
+import { Info, Folder as FolderIcon, FileIcon, Settings, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { GridItem } from '../../core/models/FilePair';
 
 interface InspectorPanelProps {
   selectedItem?: GridItem;
   isOpen: boolean;
+  onToggle: () => void;
 }
 
 /** Render a single scalar value as a readable string */
@@ -71,7 +72,7 @@ function MetaSection({ label, value }: { label: string; value: Record<string, un
   );
 }
 
-export function InspectorPanel({ selectedItem, isOpen }: InspectorPanelProps) {
+export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPanelProps) {
   const formatBytes = (bytes: number, decimals = 2) => {
     if (!+bytes) return '0 Bytes';
     const k = 1024;
@@ -161,11 +162,24 @@ export function InspectorPanel({ selectedItem, isOpen }: InspectorPanelProps) {
     );
   };
 
+  if (!isOpen) {
+    return (
+      <div className="border-l border-dark-700 bg-dark-800 shrink-0 flex flex-col items-center pt-3 w-8 z-20">
+        <button onClick={onToggle} title="Show properties panel" className="p-1 text-gray-500 hover:text-blue-400 transition-colors">
+          <PanelRightOpen size={15} />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className={`w-72 border-l border-dark-700 flex flex-col overflow-hidden shadow-2xl transition-all duration-300 shrink-0 z-20 ${isOpen ? 'bg-dark-800' : 'w-0 opacity-0'}`}>
+    <div className="w-72 border-l border-dark-700 flex flex-col overflow-hidden shadow-2xl shrink-0 z-20 bg-dark-800">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-dark-700 bg-dark-900 shrink-0">
         <Info size={14} className="text-blue-400" />
-        <span className="text-xs font-semibold text-blue-400">Properties</span>
+        <span className="text-xs font-semibold text-blue-400 flex-1">Properties</span>
+        <button onClick={onToggle} title="Hide properties panel" className="p-0.5 text-gray-500 hover:text-blue-400 transition-colors">
+          <PanelRightClose size={15} />
+        </button>
       </div>
       <div className="flex-1 overflow-hidden relative">
         {renderContent()}

@@ -2,7 +2,7 @@
  * HiddenFilesWarning — optional orange banner shown when the host tells us
  * that some files in the current folder are hidden from the browser.
  *
- * Props are passed by the host via attributes on <sidekick-manager>:
+ * Props are passed by the host via attributes on <zumilabs-file-browser>:
  *   hidden-files-count="5"
  *   hidden-files-message="5 rejected files are hidden"
  */

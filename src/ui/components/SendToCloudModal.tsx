@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, Cloud } from 'lucide-react';
+import { X, Cloud, Settings } from 'lucide-react';
 import { StcConfig } from './SettingsModal';
 
 interface SendToCloudModalProps {
@@ -7,9 +7,10 @@ interface SendToCloudModalProps {
   files: File[];
   config: StcConfig;
   onClose: () => void;
+  onOpenSettings?: () => void;
 }
 
-export function SendToCloudModal({ isOpen, files, config, onClose }: SendToCloudModalProps) {
+export function SendToCloudModal({ isOpen, files, config, onClose, onOpenSettings }: SendToCloudModalProps) {
   const stcRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
 
@@ -60,6 +61,21 @@ export function SendToCloudModal({ isOpen, files, config, onClose }: SendToCloud
 
         {/* send-to-cloud component mount point */}
         <div ref={stcRef} className="flex-1 overflow-y-auto" />
+
+        {/* Settings hint footer */}
+        <div className="px-5 py-3 border-t border-dark-700 bg-dark-900/50 shrink-0 flex items-center gap-2 text-xs text-gray-500">
+          <span>Having trouble?</span>
+          {onOpenSettings ? (
+            <button
+              onClick={() => { onClose(); onOpenSettings(); }}
+              className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              <Settings size={11} /> Check your cloud settings
+            </button>
+          ) : (
+            <span>Check your cloud endpoint and token in Settings.</span>
+          )}
+        </div>
       </div>
     </div>
   );

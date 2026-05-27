@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.svg'],
       manifest: {
-        name: 'Sidekick File Manager',
-        short_name: 'Sidekick',
-        description: 'Local-first file management',
+        name: 'ZumiLabs File Browser',
+        short_name: 'File Browser',
+        description: 'ZumiLabs File Browser — local-first, browser-native file management.',
         theme_color: '#09090b',
         background_color: '#09090b',
         display: 'standalone',
@@ -39,8 +39,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: './src/main.tsx',
-      name: 'SidekickManager',
-      fileName: 'sidekick-manager',
+      name: 'ZumiLabsFileBrowser',
+      fileName: 'zumilabs-file-browser',
       formats: ['iife'],
     },
     rollupOptions: {

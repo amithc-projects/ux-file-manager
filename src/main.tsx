@@ -3,14 +3,14 @@ import ReactDOM from 'react-dom/client';
 import App from './apps/web/App';
 import tailwindCss from './index.css?inline';
 
-class SidekickManager extends HTMLElement {
+class ZumiLabsFileBrowser extends HTMLElement {
   private root: ReactDOM.Root | null = null;
   private appRef = React.createRef<any>();
   private _telemetryHandler: ((name: string, payload: any) => void) | null = null;
 
   // ── Observed HTML attributes ───────────────────────────────────────────────
   static get observedAttributes() {
-    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing', 'hide-inspector', 'allowed-types'];
+    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing', 'hide-inspector', 'allowed-types', 'force-theme'];
   }
 
   attributeChangedCallback() {
@@ -118,6 +118,8 @@ class SidekickManager extends HTMLElement {
     const allowedTypes = allowedTypesAttr
       ? (allowedTypesAttr.split(',').map(s => s.trim()).filter(s => VALID_TYPES.has(s)) as any[])
       : null;
+    const forceThemeAttr = this.getAttribute('force-theme');
+    const forceTheme = (forceThemeAttr === 'dark' || forceThemeAttr === 'light') ? forceThemeAttr : undefined;
 
     this.root.render(
       <React.StrictMode>
@@ -138,6 +140,7 @@ class SidekickManager extends HTMLElement {
           hideInspector={hideInspector}
           allowedFiles={this._allowedFiles}
           allowedTypes={allowedTypes && allowedTypes.length ? allowedTypes : null}
+          forceTheme={forceTheme}
         />
       </React.StrictMode>
     );
@@ -175,4 +178,4 @@ class SidekickManager extends HTMLElement {
   }
 }
 
-customElements.define('sidekick-manager', SidekickManager);
+customElements.define('zumilabs-file-browser', ZumiLabsFileBrowser);

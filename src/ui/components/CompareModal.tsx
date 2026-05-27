@@ -1,5 +1,6 @@
-import { useState, useEffect, Suspense, lazy, useRef } from 'react';
-import { X, Columns, MoveHorizontal, FileText } from 'lucide-react';
+import { useState, useEffect, Suspense, lazy, useRef, useCallback } from 'react';
+import { X, Columns, MoveHorizontal, FileText, Link, Link2Off } from 'lucide-react';
+import { ZoomableImage, ZoomState, DEFAULT_ZOOM } from './ZoomableImage';
 import { GridItem } from '../../core/models/FilePair';
 
 // Lazy load the diff viewer so it only downloads when a user clicks to compare text files
@@ -16,7 +17,24 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
   const [sliderPos, setSliderPos] = useState(50);
   const [showDiffOnly, setShowDiffOnly] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+  const videoLeftRef = useRef<HTMLVideoElement>(null);
+  const videoRightRef = useRef<HTMLVideoElement>(null);
+  const [syncVideos, setSyncVideos] = useState(true);
+  const [syncZoom, setSyncZoom] = useState(true);
+  const [sharedZoom, setSharedZoom] = useState<ZoomState>(DEFAULT_ZOOM);
+  const [zoomLeft, setZoomLeft] = useState<ZoomState>(DEFAULT_ZOOM);
+  const [zoomRight, setZoomRight] = useState<ZoomState>(DEFAULT_ZOOM);
+
+  const handleZoomLeft = useCallback((z: ZoomState) => {
+    setZoomLeft(z);
+    if (syncZoom) setSharedZoom(z);
+  }, [syncZoom]);
+
+  const handleZoomRight = useCallback((z: ZoomState) => {
+    setZoomRight(z);
+    if (syncZoom) setSharedZoom(z);
+  }, [syncZoom]);
+
   const [urlLeft, setUrlLeft] = useState<string | null>(null);
   const [urlRight, setUrlRight] = useState<string | null>(null);
   
@@ -27,8 +45,10 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
   const nameRight = itemRight.type === 'file' ? itemRight.pair.id : 'Folder';
 
   const isImageFile = (name: string) => /\.(jpg|jpeg|png|gif|svg|webp|bmp)$/i.test(name);
+  const isVideoFile = (name: string) => /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name);
   const isImageCompare = itemLeft.type === 'file' && itemRight.type === 'file' && isImageFile(nameLeft) && isImageFile(nameRight);
-  const isTextCompare = !isImageCompare;
+  const isVideoCompare = itemLeft.type === 'file' && itemRight.type === 'file' && isVideoFile(nameLeft) && isVideoFile(nameRight);
+  const isTextCompare = !isImageCompare && !isVideoCompare;
 
   // Sync mode: if it's a text compare, 'slider' doesn't make much sense (unified vs split is better)
   // but react-diff-viewer handles `splitView={mode === 'side'}` nicely.
@@ -114,6 +134,39 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
     };
   }, [isTextCompare, textLeft, textRight, mode, showDiffOnly]);
 
+  // Sync video playback when syncVideos is enabled
+  useEffect(() => {
+    if (!isVideoCompare || !syncVideos) return;
+    const left = videoLeftRef.current;
+    const right = videoRightRef.current;
+    if (!left || !right) return;
+
+    const syncFrom = (source: HTMLVideoElement, target: HTMLVideoElement) => ({
+      play: () => { target.currentTime = source.currentTime; target.play().catch(() => {}); },
+      pause: () => { target.currentTime = source.currentTime; target.pause(); },
+      seeked: () => { if (Math.abs(target.currentTime - source.currentTime) > 0.1) target.currentTime = source.currentTime; },
+    });
+
+    const lHandlers = syncFrom(left, right);
+    const rHandlers = syncFrom(right, left);
+
+    left.addEventListener('play', lHandlers.play);
+    left.addEventListener('pause', lHandlers.pause);
+    left.addEventListener('seeked', lHandlers.seeked);
+    right.addEventListener('play', rHandlers.play);
+    right.addEventListener('pause', rHandlers.pause);
+    right.addEventListener('seeked', rHandlers.seeked);
+
+    return () => {
+      left.removeEventListener('play', lHandlers.play);
+      left.removeEventListener('pause', lHandlers.pause);
+      left.removeEventListener('seeked', lHandlers.seeked);
+      right.removeEventListener('play', rHandlers.play);
+      right.removeEventListener('pause', rHandlers.pause);
+      right.removeEventListener('seeked', rHandlers.seeked);
+    };
+  }, [isVideoCompare, syncVideos, urlLeft, urlRight]);
+
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-dark-950 animate-in fade-in duration-200">
       {/* Header */}
@@ -141,6 +194,28 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
                </button>
              </div>
            )}
+
+           {isVideoCompare && (
+             <button
+               onClick={() => setSyncVideos(s => !s)}
+               title={syncVideos ? 'Unsync controls' : 'Sync controls'}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${syncVideos ? 'bg-blue-600 border-blue-500 text-white' : 'border-dark-600 text-gray-400 hover:text-white hover:border-dark-500'}`}
+             >
+               {syncVideos ? <Link size={14} /> : <Link2Off size={14} />}
+               {syncVideos ? 'Synced' : 'Independent'}
+             </button>
+           )}
+
+           {isImageCompare && (
+             <button
+               onClick={() => setSyncZoom(s => !s)}
+               title={syncZoom ? 'Unsync zoom' : 'Sync zoom'}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${syncZoom ? 'bg-blue-600 border-blue-500 text-white' : 'border-dark-600 text-gray-400 hover:text-white hover:border-dark-500'}`}
+             >
+               {syncZoom ? <Link size={14} /> : <Link2Off size={14} />}
+               {syncZoom ? 'Zoom synced' : 'Zoom independent'}
+             </button>
+           )}
         </div>
 
         <button onClick={onClose} className="p-2 bg-dark-800 border border-dark-700 hover:bg-dark-700 rounded-full transition-colors shrink-0">
@@ -151,7 +226,24 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
       {/* Viewport Workspace */}
       <div className="flex-1 w-full relative overflow-hidden bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGElEQVQYlWNgYGCQwoKxgqGgcJA5h3yFAAs8BRWVSwooAAAAAElFTkSuQmCC')] bg-repeat">
          
-         {isTextCompare ? (
+         {isVideoCompare ? (
+            <div className="w-full h-full flex items-stretch divide-x divide-dark-700">
+              {[
+                { ref: videoLeftRef, url: urlLeft, name: nameLeft },
+                { ref: videoRightRef, url: urlRight, name: nameRight },
+              ].map(({ ref, url, name }) => (
+                <div key={name} className="w-1/2 h-full flex flex-col bg-dark-900/90 p-4 gap-2">
+                  <div className="text-center font-mono text-sm text-gray-400 truncate bg-dark-900/60 rounded-lg py-1 px-4 self-center">{name}</div>
+                  <div className="flex-1 flex items-center justify-center min-h-0">
+                    {url
+                      ? <video ref={ref} src={url} controls className="max-w-full max-h-full rounded-lg shadow-2xl" />
+                      : <div className="text-gray-500 text-sm">Loading…</div>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+         ) : isTextCompare ? (
             <div ref={containerRef} className="w-full h-full overflow-auto bg-[#1e1e1e] p-2 text-sm">
                 <Suspense fallback={<div className="text-gray-400 p-8 flex items-center gap-3 justify-center h-full"><div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" /> Loading text diff viewer...</div>}>
                     {textLeft !== null && textRight !== null && (
@@ -190,14 +282,14 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
                  <div className="w-full h-full flex items-stretch divide-x divide-dark-700">
                     <div className="w-1/2 h-full flex flex-col bg-dark-900/90 backdrop-blur-sm p-4">
                        <div className="text-center font-mono text-sm text-gray-400 mb-2 truncate max-w-full drop-shadow-md bg-dark-900/60 rounded-lg py-1 px-4 self-center">{nameLeft}</div>
-                       <div className="flex-1 overflow-hidden flex items-center justify-center">
-                          {urlLeft && <img src={urlLeft} className="max-w-full max-h-full object-contain filter drop-shadow-2xl rounded-lg" />}
+                       <div className="flex-1 overflow-hidden">
+                          {urlLeft && <ZoomableImage src={urlLeft} alt={nameLeft} zoomState={syncZoom ? sharedZoom : zoomLeft} onZoomChange={handleZoomLeft} className="w-full h-full" />}
                        </div>
                     </div>
                     <div className="w-1/2 h-full flex flex-col bg-dark-900/90 backdrop-blur-sm p-4">
                        <div className="text-center font-mono text-sm text-gray-400 mb-2 truncate max-w-full drop-shadow-md bg-dark-900/60 rounded-lg py-1 px-4 self-center">{nameRight}</div>
-                       <div className="flex-1 overflow-hidden flex items-center justify-center">
-                          {urlRight && <img src={urlRight} className="max-w-full max-h-full object-contain filter drop-shadow-2xl rounded-lg" />}
+                       <div className="flex-1 overflow-hidden">
+                          {urlRight && <ZoomableImage src={urlRight} alt={nameRight} zoomState={syncZoom ? sharedZoom : zoomRight} onZoomChange={handleZoomRight} className="w-full h-full" />}
                        </div>
                     </div>
                  </div>

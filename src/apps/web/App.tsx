@@ -7,7 +7,7 @@ import { FileGrid, ViewMode } from '../../ui/components/FileGrid';
 import { FilmstripView } from '../../ui/components/FilmstripView';
 import { TransformCompareView, CompareRenderResult } from '../../ui/components/TransformCompareView';
 import { HiddenFilesWarning } from '../../ui/components/HiddenFilesWarning';
-import { SettingsModal, loadStcConfig, StcConfig } from '../../ui/components/SettingsModal';
+import { SettingsModal, loadStcConfig, loadTheme, StcConfig, Theme } from '../../ui/components/SettingsModal';
 import { SendToCloudModal } from '../../ui/components/SendToCloudModal';
 import { TypeFilters, TypeFilter, getTypeFilter } from '../../ui/components/TypeFilters';
 import { InspectorPanel } from '../../ui/components/InspectorPanel';
@@ -18,7 +18,7 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Cloud, Download, Table2 } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Download, Table2 } from 'lucide-react';
 import { DataSheetView } from '../../ui/components/DataSheetView';
 import { CsvImportModal } from '../../ui/components/CsvImportModal';
 
@@ -50,7 +50,7 @@ export interface AppProps {
    * When true, ignore window.location.hash when computing the initial
    * directory path. Required when the component is embedded in a host
    * app (e.g. pic-machina) that uses the hash for its own routing —
-   * otherwise sidekick would treat the host's route name as a sub-folder
+   * otherwise the component would treat the host's route name as a sub-folder
    * deep-link, fail to find it, and then clear the hash (causing the
    * host router to navigate away).
    */
@@ -65,6 +65,8 @@ export interface AppProps {
    *  types are shown (even with count=0), all are active by default, multi-select toggles,
    *  and files of disallowed types are hidden unconditionally. */
   allowedTypes?: TypeFilter[] | null;
+  /** When set, overrides the user's theme preference. 'dark' | 'light' */
+  forceTheme?: Theme;
 }
 
 export interface NavigateOptions {
@@ -80,7 +82,7 @@ export interface AppRef {
   getCurrentDirectoryHandle: () => FileSystemDirectoryHandle | null;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null, allowedTypes = null }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null, allowedTypes = null, forceTheme }, ref) => {
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,6 +97,16 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [theme, setTheme] = useState<Theme>(() => forceTheme ?? loadTheme());
+  const [thumbnailSize, setThumbnailSize] = useState<number>(() => {
+    const saved = localStorage.getItem('zl_fb_thumb_size');
+    return saved ? parseInt(saved, 10) : 160;
+  });
+  const [inspectorOpen, setInspectorOpen] = useState<boolean>(() =>
+    localStorage.getItem('zl_fb_inspector') !== 'false'
+  );
+
+  const activeTheme = forceTheme ?? theme;
   
   // Modals & Popups
   const [previewItem, setPreviewItem] = useState<{ item: GridItem, forceText?: boolean } | null>(null);
@@ -146,7 +158,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const lastClickedIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-     if (onTelemetry) onTelemetry('sidekick:ready', { version: '1.0' });
+     if (onTelemetry) onTelemetry('filebrowser:ready', { version: '1.0' });
      StorageService.getWorkspaces().then(setRecentWorkspaces);
      StorageService.getBookmarks().then(setBookmarks);
   }, []);
@@ -154,16 +166,16 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   useEffect(() => {
      if (onTelemetry) {
         const targets = items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name));
-        onTelemetry('sidekick:selection', { items: targets.map(t => t.type === 'file' ? t.pair.id : t.name) });
+        onTelemetry('filebrowser:selection', { items: targets.map(t => t.type === 'file' ? t.pair.id : t.name) });
 
-        // sidekick:file-focus — fires when exactly one file is selected
+        // filebrowser:file-focus — fires when exactly one file is selected
         const fileTargets = targets.filter(t => t.type === 'file');
         if (fileTargets.length === 1) {
            const item = fileTargets[0];
            if (item.type === 'file') {
               const pair = item.pair;
               pair.mainHandle.getFile().then((f) => {
-                onTelemetry('sidekick:file-focus', {
+                onTelemetry('filebrowser:file-focus', {
                    filename:     pair.id,
                    handle:       pair.mainHandle,
                    metadata:     pair.metadata ?? null,
@@ -173,14 +185,14 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               }).catch(() => {});
            }
         } else {
-           onTelemetry('sidekick:file-focus', null);
+           onTelemetry('filebrowser:file-focus', null);
         }
      }
   }, [selectedIds, items, onTelemetry]);
 
   useEffect(() => {
      if (onTelemetry && pathStack.length > 0) {
-        onTelemetry('sidekick:workspace', {
+        onTelemetry('filebrowser:workspace', {
            folderName: pathStack[pathStack.length - 1].name,
            pathLength: pathStack.length,
            pathNames: pathStack.map(h => h.name),
@@ -365,7 +377,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     } catch (err: any) {
       // AbortError means the user cancelled the picker — not an error worth reporting
       if (err?.name === 'AbortError') return;
-      if (onTelemetry) onTelemetry('sidekick:error', { code: 'FSA_DENIED', message: err?.message || 'Access Denied' });
+      if (onTelemetry) onTelemetry('filebrowser:error', { code: 'FSA_DENIED', message: err?.message || 'Access Denied' });
     }
   };
 
@@ -547,7 +559,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           // Allow modifying pure UI params if root isn't even active
           if (pathStackRef.current.length === 0) {
              if (pathStr && onTelemetry) {
-                 onTelemetry('sidekick:error', { code: 'NAV_DENIED', message: 'Cannot navigate deep path before Root Folder is authorized.' });
+                 onTelemetry('filebrowser:error', { code: 'NAV_DENIED', message: 'Cannot navigate deep path before Root Folder is authorized.' });
              }
              return;
           }
@@ -604,10 +616,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
            await currentDir.removeEntry(item.name, { recursive: true });
         }
       }
-      if (onTelemetry) onTelemetry('sidekick:action', { action: 'delete', targetCount: targetedItems.length });
+      if (onTelemetry) onTelemetry('filebrowser:action', { action: 'delete', targetCount: targetedItems.length });
       await refreshCurrentDirectory();
     } catch (error: any) { 
-        if (onTelemetry) onTelemetry('sidekick:error', { code: 'DELETE_ABORTED', message: error?.message });
+        if (onTelemetry) onTelemetry('filebrowser:error', { code: 'DELETE_ABORTED', message: error?.message });
     } finally { setLoading(false); }
   };
 
@@ -630,7 +642,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
          const dlUrl = URL.createObjectURL(blob);
          const a = document.createElement('a');
          a.href = dlUrl;
-         a.download = 'sidekick_collection.zip';
+         a.download = 'zl-file-browser_collection.zip';
          document.body.appendChild(a);
          a.click();
          document.body.removeChild(a);
@@ -708,9 +720,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                     }
                  }
              }
-             if (onTelemetry) onTelemetry('sidekick:action', { action: 'paste', count: clipboardItems.length });
+             if (onTelemetry) onTelemetry('filebrowser:action', { action: 'paste', count: clipboardItems.length });
          } catch (err: any) {
-             if (onTelemetry) onTelemetry('sidekick:error', { message: 'Paste interrupted: ' + err?.message });
+             if (onTelemetry) onTelemetry('filebrowser:error', { message: 'Paste interrupted: ' + err?.message });
          } finally {
              setClipboardItems([]);
              _setClipboardAction(null);
@@ -737,9 +749,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
            const text = await file.text();
            await navigator.clipboard.writeText(text);
        }
-       if (onTelemetry) onTelemetry('sidekick:action', { action: 'copy-contents', target: item.pair.id });
+       if (onTelemetry) onTelemetry('filebrowser:action', { action: 'copy-contents', target: item.pair.id });
      } catch (e: any) {
-        if (onTelemetry) onTelemetry('sidekick:error', { code: 'COPY_FAILED', message: e?.message });
+        if (onTelemetry) onTelemetry('filebrowser:error', { code: 'COPY_FAILED', message: e?.message });
      }
   };
 
@@ -948,7 +960,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   }, [processedGroups, selectedIdsArray, selectedIds, clearSelection, toggleSelection, handleItemDoubleClick]);
 
   return (
-    <div className="w-full h-full flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden" onClick={closeContext}>
+    <div className={`zl-app w-full h-full flex flex-col bg-dark-900 text-gray-100 font-sans overflow-hidden ${activeTheme === 'light' ? 'light-mode' : ''}`} onClick={closeContext}>
       {/* ── Two-row header ───────────────────────────────────────────────────── */}
       <header className="border-b border-dark-700 bg-dark-800 shrink-0 relative z-40 shadow-sm select-none">
 
@@ -968,7 +980,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             {/* Scrollable breadcrumb path */}
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar font-medium text-sm tracking-tight scroll-smooth min-w-0">
               {pathStack.length === 0 ? (
-                 <span className="text-base font-semibold text-gray-300 whitespace-nowrap">Sidekick</span>
+                 <span className="text-base font-semibold text-gray-300 whitespace-nowrap">ZumiLabs File Browser</span>
               ) : (
                  pathStack.map((handle, idx) => (
                    <React.Fragment key={idx + handle.name}>
@@ -1047,9 +1059,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           <button
             onClick={() => setSettingsOpen(true)}
             title="Settings"
-            className={`p-1.5 rounded-lg transition-colors shrink-0 ${stcConfig ? 'text-blue-400 hover:text-blue-300 hover:bg-dark-700' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
+            className="p-1.5 rounded-lg transition-colors shrink-0 text-gray-400 hover:text-white hover:bg-dark-700"
           >
-            {stcConfig ? <Cloud size={15} /> : <Settings size={15} />}
+            <Settings size={15} />
           </button>
 
           {/* Bookmarks top-bar button + dropdown */}
@@ -1264,13 +1276,13 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                           const blob = await zip.generateAsync({ type: 'blob' });
                           const url = URL.createObjectURL(blob);
                           const a = document.createElement('a');
-                          a.href = url; a.download = 'sidekick_download.zip';
+                          a.href = url; a.download = 'zl-file-browser_download.zip';
                           document.body.appendChild(a); a.click(); document.body.removeChild(a);
                           URL.revokeObjectURL(url);
                         }
                       } catch (err) {
-                        console.error('[sidekick] download failed:', err);
-                        if (onTelemetry) onTelemetry('sidekick:error', { code: 'DOWNLOAD_FAILED', message: (err as any)?.message });
+                        console.error('[zl-file-browser] download failed:', err);
+                        if (onTelemetry) onTelemetry('filebrowser:error', { code: 'DOWNLOAD_FAILED', message: (err as any)?.message });
                       }
                     }} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-green-400 rounded text-xs font-medium text-gray-300 transition-colors">
                       <Download size={13} /> Download
@@ -1314,8 +1326,26 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             )}
           </div>
 
+          {/* Thumbnail size slider — only in grid/filmstrip mode */}
+          {(viewMode === 'grid' || viewMode === 'filmstrip') && (
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              <LayoutGrid size={12} className="text-gray-500" />
+              <input
+                type="range"
+                min={80}
+                max={280}
+                step={20}
+                value={thumbnailSize}
+                onChange={e => { const v = Number(e.target.value); setThumbnailSize(v); localStorage.setItem('zl_fb_thumb_size', String(v)); }}
+                title="Thumbnail size"
+                className="w-20 h-1 accent-blue-500 cursor-pointer"
+              />
+              <LayoutGrid size={16} className="text-gray-500" />
+            </div>
+          )}
+
           {/* View mode */}
-          <div className="flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0 ml-auto">
+          <div className={`flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0 ${viewMode !== 'grid' && viewMode !== 'filmstrip' ? 'ml-auto' : ''}`}>
             <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
             <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
@@ -1352,6 +1382,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               groups={[{ groupName: '', items: collection }]}
               selectedIdsArray={selectedIdsArray}
               viewMode={viewMode === 'filmstrip' ? 'grid' : viewMode}
+              thumbnailSize={thumbnailSize}
               onItemClick={handleItemClick}
               onItemDoubleClick={handleItemDoubleClick}
               onItemContextMenu={(item, e) => {
@@ -1365,7 +1396,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           ) : pathStack.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 max-w-xl text-center m-auto h-full w-full">
               <FolderOpen size={64} className="mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
-              <h2 className="text-2xl font-bold text-white mb-2">Welcome to Sidekick</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Welcome to ZumiLabs File Browser</h2>
               <button onClick={handleOpenRootFolder} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg font-medium text-white transition-all transform hover:scale-105 mb-12 mt-4">Select Local Directory</button>
               
               {recentWorkspaces.length > 0 && (
@@ -1425,6 +1456,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               groups={processedGroups}
               selectedIdsArray={selectedIdsArray}
               viewMode={viewMode}
+              thumbnailSize={thumbnailSize}
               onItemClick={handleItemClick}
               onItemDoubleClick={handleItemDoubleClick}
               onItemContextMenu={(item, e) => {
@@ -1440,7 +1472,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
         {!hideInspector && (
           <InspectorPanel
-             isOpen={true}
+             isOpen={inspectorOpen}
+             onToggle={() => { setInspectorOpen(o => { const next = !o; localStorage.setItem('zl_fb_inspector', String(next)); return next; }); }}
              selectedItem={selectedItem}
           />
         )}
@@ -1473,7 +1506,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       />
 
       {contextMenu && (
-         <div className="fixed z-[200] w-56 py-1 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1" style={{ top: contextMenu.y, left: contextMenu.x }}>
+         <div className="fixed z-[200] w-56 py-1 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1" style={{ top: Math.min(contextMenu.y, window.innerHeight - 320), left: Math.min(contextMenu.x, window.innerWidth - 232) }}>
             {contextMenu.item.type === 'folder' && contextMenu.item.name !== '..' && (
                <button onClick={async () => {
                   const bk = await StorageService.saveBookmark((contextMenu.item as any).handle);
@@ -1584,6 +1617,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onSave={(cfg) => setStcConfig(cfg)}
+        theme={activeTheme}
+        onThemeChange={setTheme}
+        forcedTheme={forceTheme}
       />
 
       {stcModalOpen && stcConfig && (
@@ -1592,6 +1628,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           files={stcFiles}
           config={stcConfig}
           onClose={() => { setStcModalOpen(false); setStcFiles([]); }}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
       )}
     </div>

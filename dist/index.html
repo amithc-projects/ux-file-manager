@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <script>
+    if (!window.location.pathname.endsWith('/')) {
+      window.location.replace(window.location.href + '/');
+    }
+  </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#09090b" />
+    <link rel="icon" type="image/svg+xml" href="./pwa-icon.svg" />
+    <link rel="apple-touch-icon" href="./pwa-icon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <title>ZumiLabs File Browser</title>
+  <style>
+    body { margin: 0; padding: 0; height: 100vh; overflow: hidden; }
+  </style>
+  </head>
+  <body>
+    <zumilabs-file-browser></zumilabs-file-browser>
+
+    <!-- Host Telemetry Test Script -->
+    <script>
+       const manager = document.querySelector('zumilabs-file-browser');
+       manager.addEventListener('filebrowser:ready', (e) => console.log('✅ App Booted:', e.detail));
+       manager.addEventListener('filebrowser:selection', (e) => console.log('🎯 Items Selected:', e.detail));
+       manager.addEventListener('filebrowser:action', (e) => console.log('⚡ Action Performed:', e.detail));
+       manager.addEventListener('filebrowser:error', (e) => console.error('🚫 System Block:', e.detail));
+       manager.addEventListener('filebrowser:workspace', (e) => console.log('📁 Root Target Swapped:', e.detail));
+    </script>
+
+    <!-- Send to Cloud web component (loaded before the app so the custom element is defined) -->
+    <script src="./send-to-cloud.js"></script>
+    <script src="./registerSW.js"></script>
+    <script src="./zumilabs-file-browser.iife.js"></script>
+  </body>
+</html>

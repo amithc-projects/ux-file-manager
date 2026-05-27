@@ -152,7 +152,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         <div className="flex-1 flex items-center gap-2 truncate pointer-events-none">
           <p className="text-sm font-medium truncate text-gray-200" title={itemName}>{itemName}</p>
           {isFile && pair!.sidecarHandle && (
-            <span className="bg-indigo-500/80 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold text-white shrink-0">Meta</span>
+            <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" title="Has metadata" />
           )}
         </div>
         <div className="flex items-center justify-end gap-6 shrink-0 text-right pointer-events-none pr-2">
@@ -185,9 +185,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         </div>
         {isVideo && <VideoBadge />}
         {isFile && pair!.sidecarHandle && (
-           <div className="absolute bottom-2 right-2 bg-indigo-500/80 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold text-white shadow-sm z-10 pointers-none">
-             Meta
-           </div>
+           <div className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-400 shadow-sm z-10 pointer-events-none" title="Has metadata" />
         )}
       </div>
       <div className="p-3 border-t border-dark-700/50 flex-1 truncate pointers-none">
@@ -198,7 +196,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
            <p className="text-xs text-gray-500">
              {!isFile ? 'Folder' : pair!.size ? `${(pair!.size / (1024 * 1024) >= 1) ? (pair!.size / (1024 * 1024)).toFixed(1) + ' MB' : (pair!.size / 1024).toFixed(1) + ' KB'}` : 'Unknown Size'}
            </p>
-           {isFile && pair!.sidecarHandle && <span className="text-[10px] text-indigo-400 uppercase font-bold">Paired</span>}
+           {isFile && pair!.sidecarHandle && <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" title="Has metadata" />}
         </div>
       </div>
     </div>
@@ -214,6 +212,7 @@ interface FileGridProps {
   groups: GroupedItems[];
   selectedIdsArray: (string | null)[];
   viewMode: ViewMode;
+  thumbnailSize?: number;
   onItemClick: (id: string, e: React.MouseEvent) => void;
   onItemDoubleClick: (item: GridItem, e: React.MouseEvent) => void;
   onItemContextMenu: (item: GridItem, e: React.MouseEvent) => void;
@@ -221,7 +220,7 @@ interface FileGridProps {
   onItemLeave?: () => void;
 }
 
-export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onItemDoubleClick, onItemContextMenu, onItemHover, onItemLeave }: FileGridProps) {
+export function FileGrid({ groups, selectedIdsArray, viewMode, thumbnailSize = 160, onItemClick, onItemDoubleClick, onItemContextMenu, onItemHover, onItemLeave }: FileGridProps) {
   if (groups.length === 0 || (groups.length === 1 && groups[0].items.length === 0)) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
@@ -265,10 +264,8 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, onItemClick, onIt
       );
     }
 
-    const gridCols = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8';
-
     return (
-      <div className={`grid ${gridCols} gap-4 w-full items-start mb-8`}>
+      <div className="grid gap-4 w-full items-start mb-8" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
         {items.map(item => {
           const id = item.type === 'file' ? item.pair.id : item.name;
           return (
