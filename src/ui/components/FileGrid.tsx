@@ -36,7 +36,7 @@ const VideoBadge = ({ size = 'md' }: { size?: 'sm' | 'md' }) => {
   );
 };
 
-export type ViewMode = 'grid' | 'filmstrip' | 'list';
+export type ViewMode = 'grid' | 'filmstrip' | 'list' | 'data';
 
 interface FileGridItemProps {
   item: GridItem;

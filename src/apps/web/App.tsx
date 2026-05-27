@@ -18,7 +18,9 @@ import { ConfirmModal } from '../../ui/components/ConfirmModal';
 import { PathPromptModal } from '../../ui/components/PathPromptModal';
 import { SlideshowModal } from '../../ui/components/SlideshowModal';
 import { useSelection } from '../../ui/hooks/useSelection';
-import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Cloud, Download } from 'lucide-react';
+import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Cloud, Download, Table2 } from 'lucide-react';
+import { DataSheetView } from '../../ui/components/DataSheetView';
+import { CsvImportModal } from '../../ui/components/CsvImportModal';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -121,6 +123,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const [stcConfig, setStcConfig] = useState<StcConfig | null>(() => loadStcConfig());
   const [stcFiles, setStcFiles] = useState<File[]>([]);
   const [stcModalOpen, setStcModalOpen] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   // Active type filter chips. Empty Set = no filter (show all). In recipe mode,
   // initialised to the full allowedTypes list.
   const [typeFilter, setTypeFilter] = useState<Set<TypeFilter>>(
@@ -346,6 +349,14 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       }
     } catch (err) { } finally { setLoading(false); }
   }, [loadHandleContentsToUI]);
+
+  const handleMetadataUpdated = useCallback((id: string, metadata: Record<string, unknown>) => {
+    setItems(prev => prev.map(item =>
+      item.type === 'file' && item.pair.id === id
+        ? { ...item, pair: { ...item.pair, metadata } }
+        : item
+    ));
+  }, []);
 
   const handleOpenRootFolder = async () => {
     try {
@@ -813,8 +824,12 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if typing in an input/textarea
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) return;
+      // Don't intercept if typing in an input/textarea.
+      // Check both the document active element and the shadow-root active element
+      // (the app runs inside a Shadow DOM web component, so document.activeElement
+      // points to the shadow host rather than the focused inner element).
+      const deepActive = (document.activeElement?.shadowRoot?.activeElement ?? document.activeElement) as Element | null;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(deepActive?.tagName || '')) return;
 
       const flatItems = processedGroups.flatMap(g => g.items);
       const flatIds = flatItems.map(i => i.type === 'file' ? i.pair.id : i.name);
@@ -1304,6 +1319,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
             <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
             <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
+            <button title="Data Sheet" onClick={() => setViewMode('data')} className={`p-1.5 rounded-md ${viewMode === 'data' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Table2 size={15} /></button>
           </div>
         </div>
       </header>
@@ -1396,6 +1412,13 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                  e.stopPropagation();
                  setContextMenu({ x: e.pageX, y: e.pageY, item });
               }}
+            />
+          ) : viewMode === 'data' ? (
+            <DataSheetView
+              items={processedGroups.flatMap(g => g.items)}
+              dirHandle={pathStack[pathStack.length - 1] ?? null}
+              onMetadataUpdated={handleMetadataUpdated}
+              onImportCsv={() => setCsvImportOpen(true)}
             />
           ) : (
             <FileGrid
@@ -1543,6 +1566,19 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       )}
 
       {slideshowItems && <SlideshowModal items={slideshowItems} onClose={() => setSlideshowItems(null)} />}
+
+      <CsvImportModal
+        isOpen={csvImportOpen}
+        onClose={() => setCsvImportOpen(false)}
+        dirHandle={pathStack[pathStack.length - 1] ?? null}
+        items={items}
+        onComplete={() => {
+          setCsvImportOpen(false);
+          // Rescan to pick up newly written sidecars
+          const dir = pathStack[pathStack.length - 1];
+          if (dir) scanAndSetDirectory(dir, false);
+        }}
+      />
 
       <SettingsModal
         isOpen={settingsOpen}

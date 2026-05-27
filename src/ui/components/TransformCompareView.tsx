@@ -28,7 +28,7 @@ import { useThumbnails } from '../hooks/useThumbnails';
 import { Folder, Film, FileIcon, Image as ImageIcon, Music, Check, Play, Info, Loader2, SplitSquareHorizontal, Columns2, GalleryHorizontal, MoveHorizontal } from 'lucide-react';
 
 type CompareLayout = 'side-by-side' | 'slider';
-type ViewMode = 'grid' | 'filmstrip' | 'list';
+type ViewMode = 'grid' | 'filmstrip' | 'list' | 'data';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
