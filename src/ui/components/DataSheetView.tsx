@@ -165,7 +165,7 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-dark-700 bg-dark-800 shrink-0">
         <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Data Sheet</span>
-        <span className="text-xs text-gray-600">— {mediaItems.length} files · edit cells to write sidecar metadata</span>
+        <span className="text-xs text-gray-600">— {mediaItems.length} files · edit cells to write metadata</span>
         <div className="ml-auto flex gap-2">
           <button
             onClick={onImportCsv}

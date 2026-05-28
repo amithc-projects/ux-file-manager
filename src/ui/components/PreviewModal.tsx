@@ -11,9 +11,10 @@ interface PreviewModalProps {
   hasPrev?: boolean;
   hasNext?: boolean;
   onSaveNewFile?: (blob: Blob, name: string, options?: {overwriteOriginal?: boolean}) => Promise<void>;
+  onOpenSettings?: () => void;
 }
 
-export function PreviewModal({ item, forceText, onClose, onNavigate, hasPrev, hasNext, onSaveNewFile }: PreviewModalProps) {
+export function PreviewModal({ item, forceText, onClose, onNavigate, hasPrev, hasNext, onSaveNewFile, onOpenSettings }: PreviewModalProps) {
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -59,7 +60,7 @@ export function PreviewModal({ item, forceText, onClose, onNavigate, hasPrev, ha
       </div>
 
       <div className="relative w-full max-w-6xl h-[85vh] flex items-center justify-center bg-dark-900 border border-dark-700 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden">
-          <FileViewer item={item} forceText={forceText} onSaveNewFile={onSaveNewFile} />
+          <FileViewer item={item} forceText={forceText} onSaveNewFile={onSaveNewFile} onOpenSettings={onOpenSettings} />
       </div>
 
     </div>

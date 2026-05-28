@@ -1493,7 +1493,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
         <ConfirmModal 
           isOpen={true} title="Delete Selected Items" isDestructive={true}
           confirmText="Delete permanently"
-          message={`Are you sure you want to delete the ${selectedIds.size} items? Sidecars will be destroyed.`}
+          message={`Are you sure you want to delete the ${selectedIds.size} items? Associated metadata will also be deleted.`}
           onCancel={() => setDeleteModalOpen(false)}
           onConfirm={() => executeDeleteMode(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)))}
         />
@@ -1547,6 +1547,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
          }}
          hasPrev={previewIdx > 0}
          hasNext={previewIdx < previewFileItems.length - 1}
+         onOpenSettings={() => setSettingsOpen(true)}
          onSaveNewFile={async (blob, name, options) => {
             const targetDir = pathStack[pathStack.length - 1];
             if (!targetDir) return;

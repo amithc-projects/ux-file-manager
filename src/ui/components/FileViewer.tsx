@@ -5,6 +5,7 @@ import { GridItem } from '../../core/models/FilePair';
 import { FileIcon, Music } from 'lucide-react';
 import { VideoEditor } from './VideoEditor';
 import { ZoomableImage } from './ZoomableImage';
+import { OfficeViewer } from './office/OfficeViewer';
 
 function JsonNode({ nodeKey, value, isLast }: { nodeKey?: string, value: any, isLast: boolean }) {
    const [expanded, setExpanded] = useState(true);
@@ -169,7 +170,7 @@ function HtmlViewer({ text }: { text: string | null, item: GridItem }) {
     );
 }
 
-export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem, forceText?: boolean, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void> }) {
+export function FileViewer({ item, forceText, onSaveNewFile, onOpenSettings }: { item: GridItem, forceText?: boolean, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void>, onOpenSettings?: () => void }) {
    const [fileObj, setFileObj] = useState<File | null>(null);
    const [textData, setTextData] = useState<string | null>(null);
    const [error, setError] = useState(false);
@@ -220,16 +221,18 @@ export function FileViewer({ item, forceText, onSaveNewFile }: { item: GridItem,
 
    if (forceText) return <CodeViewer text={textData} item={item} />;
 
-   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext);
-   const isVideo = ['mp4', 'webm', 'mov'].includes(ext);
-   const isAudio = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(ext);
-   const isPDF = ['pdf'].includes(ext);
-   const isZip = ['zip'].includes(ext);
-   const isJson = ['json'].includes(ext);
-   const isMd = ['md', 'markdown'].includes(ext);
-   const isCode = ['js', 'ts', 'tsx', 'jsx', 'sh', 'css', 'csv', 'txt'].includes(ext);
-   const isHtml = ['html', 'htm'].includes(ext);
+   const isImage  = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext);
+   const isVideo  = ['mp4', 'webm', 'mov'].includes(ext);
+   const isAudio  = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(ext);
+   const isPDF    = ['pdf'].includes(ext);
+   const isZip    = ['zip'].includes(ext);
+   const isJson   = ['json'].includes(ext);
+   const isMd     = ['md', 'markdown'].includes(ext);
+   const isCode   = ['js', 'ts', 'tsx', 'jsx', 'sh', 'css', 'csv', 'txt'].includes(ext);
+   const isHtml   = ['html', 'htm'].includes(ext);
+   const isOffice = ['docx', 'pptx', 'xlsx'].includes(ext);
 
+   if (isOffice) return <OfficeViewer file={fileObj} ext={ext as 'docx' | 'pptx' | 'xlsx'} onOpenSettings={onOpenSettings} />;
    if (isImage) return <MediaViewer file={fileObj} type="image" />;
    if (isVideo) {
        (fileObj as any).onSaveNewFile = onSaveNewFile;

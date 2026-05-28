@@ -132,11 +132,11 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
           </div>
         </div>
 
-        {/* Sidecar metadata */}
+        {/* File metadata */}
         {meta && (scalarEntries.length > 0 || objectEntries.length > 0) && (
           <div className="space-y-2">
             <h4 className="flex items-center gap-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-              <Settings size={14} /> Sidecar Metadata
+              <Settings size={14} /> Metadata
               {meta.$version != null && <span className="ml-auto text-indigo-400/40 normal-case font-normal">v{String(meta.$version)}</span>}
             </h4>
 

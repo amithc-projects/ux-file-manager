@@ -149,7 +149,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
                 </select>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-2 font-medium">Map other columns to sidecar field names:</p>
+                <p className="text-xs text-gray-400 mb-2 font-medium">Map other columns to metadata field names:</p>
                 <div className="flex flex-col gap-2">
                   {headers.map((h, i) => i === filenameCol ? null : (
                     <div key={i} className="flex items-center gap-3">
@@ -159,14 +159,14 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
                         type="text"
                         value={fieldNames[i] ?? h}
                         onChange={e => setFieldNames(prev => { const n = [...prev]; n[i] = e.target.value; return n; })}
-                        placeholder="sidecar field name"
+                        placeholder="metadata field name"
                         className="flex-1 bg-dark-700 border border-dark-600 rounded px-2 py-1 text-xs text-white"
                       />
                     </div>
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-gray-500">Fields will be written under <code className="text-blue-400">asset.*</code> in the sidecar JSON, accessible as <code className="text-blue-400">{'{{'}sidecar.asset.fieldname{'}}'}</code> in pic-machina recipes.</p>
+              <p className="text-xs text-gray-500">Fields will be written under <code className="text-blue-400">asset.*</code> in the metadata JSON, accessible as <code className="text-blue-400">{'{{'}asset.fieldname{'}}'}</code> in pic-machina recipes.</p>
             </div>
           )}
 
@@ -220,7 +220,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
               <div className="w-full bg-dark-700 rounded-full h-2">
                 <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
               </div>
-              <p className="text-sm text-gray-300">Writing sidecars… {progress}%</p>
+              <p className="text-sm text-gray-300">Writing metadata… {progress}%</p>
             </div>
           )}
 
@@ -228,7 +228,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
           {step === 'done' && (
             <div className="flex flex-col items-center gap-3 py-8">
               <CheckCircle size={40} className="text-green-400" />
-              <p className="text-gray-300 text-sm">Import complete. Sidecar files have been written.</p>
+              <p className="text-gray-300 text-sm">Import complete. Metadata has been written.</p>
             </div>
           )}
         </div>
