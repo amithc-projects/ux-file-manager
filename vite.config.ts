@@ -44,9 +44,17 @@ export default defineConfig({
       formats: ['iife'],
     },
     rollupOptions: {
+      // docMentis ships an 18 MB WASM binary. If bundled into the IIFE it gets
+      // base64-encoded, bloating the output to ~27 MB. Mark it external so it
+      // stays as a lazy dynamic import — the consumer (filemanager.html) provides
+      // an import map that resolves the bare specifier to the vendored ESM files.
+      external: ['@docmentis/udoc-viewer'],
       output: {
         inlineDynamicImports: true,
-      }
+        globals: {
+          '@docmentis/udoc-viewer': 'DocMentis',  // fallback for static-import shim
+        },
+      },
     }
   }
 })

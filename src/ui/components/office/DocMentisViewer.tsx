@@ -5,7 +5,7 @@
  * loads the given File, and tears everything down on unmount.
  */
 import { useEffect, useRef, useState } from 'react';
-import { UDocClient } from '@docmentis/udoc-viewer';
+import type { UDocClient as UDocClientType } from '@docmentis/udoc-viewer';
 
 interface Props {
   file: File;
@@ -14,7 +14,7 @@ interface Props {
 
 export function DocMentisViewer({ file, licenseKey }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
-  const clientRef     = useRef<UDocClient | null>(null);
+  const clientRef     = useRef<UDocClientType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,6 +25,12 @@ export function DocMentisViewer({ file, licenseKey }: Props) {
 
     async function init() {
       try {
+        // Dynamic import keeps docMentis out of the main IIFE bundle.
+        // In the web app (dev/PWA) Vite resolves this from node_modules.
+        // In the Chrome extension the consumer provides an import map that
+        // maps '@docmentis/udoc-viewer' → the vendored ESM files.
+        const { UDocClient } = await import(/* @vite-ignore */ '@docmentis/udoc-viewer');
+
         const client = await UDocClient.create({
           license: licenseKey || undefined,
         });
