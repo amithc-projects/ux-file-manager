@@ -30,7 +30,37 @@ export async function convertToMarkdown(file: File): Promise<string> {
     parseConfig: { outputErrorToConsole: false },
   });
 
-  return (result.value as string).trim();
+  return cleanMarkdown((result.value as string).trim());
+}
+
+/**
+ * Post-process officeparser's markdown output to remove common artefacts:
+ *
+ * 1. Unwrap <div style="text-align: center">...</div> → inner content only.
+ *    Markdown has no native centring; the HTML wrapper is noise for most
+ *    downstream uses (LLM prompts, note apps, plain editors).
+ *
+ * 2. Strip {#anchor-id} heading anchors appended by officeparser.
+ *    Valid in Pandoc/GFM but distracting when copying to non-Pandoc targets.
+ *
+ * 3. Collapse runs of 3+ consecutive blank lines to a single blank line.
+ *    DOCX uses empty paragraphs for visual spacing; each becomes a blank
+ *    line, producing large gaps in the output.
+ */
+function cleanMarkdown(md: string): string {
+  // 1. Unwrap centred divs — handle optional inner newlines and whitespace.
+  //    Matches both single-line and multi-line variants:
+  //      <div style="text-align: center">content</div>
+  //      <div style="text-align: center">\ncontent\n</div>
+  md = md.replace(/<div\s+style="text-align:\s*center">\s*([\s\S]*?)\s*<\/div>/g, (_match, inner) => inner.trim());
+
+  // 2. Strip {#some-anchor-id} from headings (and anywhere else they appear).
+  md = md.replace(/\s*\{#[^}]+\}/g, '');
+
+  // 3. Collapse 3+ consecutive blank lines to exactly one blank line.
+  md = md.replace(/\n{3,}/g, '\n\n');
+
+  return md.trim();
 }
 
 /**
