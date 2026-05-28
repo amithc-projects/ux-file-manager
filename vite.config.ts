@@ -48,7 +48,7 @@ export default defineConfig({
       // base64-encoded, bloating the output to ~27 MB. Mark it external so it
       // stays as a lazy dynamic import — the consumer (filemanager.html) provides
       // an import map that resolves the bare specifier to the vendored ESM files.
-      external: ['@docmentis/udoc-viewer'],
+      external: ['@docmentis/udoc-viewer', 'officeparser'],
       output: {
         inlineDynamicImports: true,
         globals: {

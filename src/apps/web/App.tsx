@@ -21,6 +21,7 @@ import { useSelection } from '../../ui/hooks/useSelection';
 import { FolderOpen, FolderPlus, Search, SearchX, LayoutGrid, List, Columns as CompareIcon, SortAsc, SortDesc, History, Copy, Trash2, ClipboardPaste, BoxSelect, Bookmark, FileText, X, Play, GalleryHorizontal, ChevronDown, Settings, Download, Table2 } from 'lucide-react';
 import { DataSheetView } from '../../ui/components/DataSheetView';
 import { CsvImportModal } from '../../ui/components/CsvImportModal';
+import { convertToMarkdown, downloadMarkdown, isOfficeFile } from '../../ui/components/office/convertToMarkdown';
 
 type SortBy = 'name' | 'type' | 'date' | 'size';
 type GroupBy = 'none' | 'type';
@@ -753,6 +754,41 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
      } catch (e: any) {
         if (onTelemetry) onTelemetry('filebrowser:error', { code: 'COPY_FAILED', message: e?.message });
      }
+  };
+
+  // ── Markdown conversion ────────────────────────────────────────────────────
+  const [mdStatus, setMdStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+
+  const showMdStatus = (msg: string, ok: boolean) => {
+    setMdStatus({ msg, ok });
+    setTimeout(() => setMdStatus(null), 3000);
+  };
+
+  const handleCopyAsMarkdown = async (item: GridItem) => {
+    if (item.type !== 'file') return;
+    try {
+      const file = await item.pair.mainHandle.getFile();
+      const md = await convertToMarkdown(file);
+      await navigator.clipboard.writeText(md);
+      showMdStatus('Markdown copied to clipboard', true);
+      if (onTelemetry) onTelemetry('filebrowser:action', { action: 'copy-as-markdown', target: item.pair.id });
+    } catch (e: any) {
+      showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
+      if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_COPY_FAILED', message: e?.message });
+    }
+  };
+
+  const handleSaveAsMarkdown = async (item: GridItem) => {
+    if (item.type !== 'file') return;
+    try {
+      const file = await item.pair.mainHandle.getFile();
+      const md = await convertToMarkdown(file);
+      downloadMarkdown(md, item.pair.id);
+      if (onTelemetry) onTelemetry('filebrowser:action', { action: 'save-as-markdown', target: item.pair.id });
+    } catch (e: any) {
+      showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
+      if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_SAVE_FAILED', message: e?.message });
+    }
   };
 
   const selectedItem = items.find(i => {
@@ -1523,6 +1559,12 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             {contextMenu.item.type === 'file' && (
                <button onClick={() => { setPreviewItem({ item: contextMenu.item, forceText: true }); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><FileText size={14}/> View as Text</button>
             )}
+            {contextMenu.item.type === 'file' && isOfficeFile(contextMenu.item.pair.id) && (<>
+               <div className="border-t border-dark-700 my-1" />
+               <button onClick={() => { handleCopyAsMarkdown(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-emerald-700 hover:text-white transition-colors text-left"><ClipboardPaste size={14}/> Copy as Markdown</button>
+               <button onClick={() => { handleSaveAsMarkdown(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-emerald-700 hover:text-white transition-colors text-left"><Download size={14}/> Save as Markdown</button>
+               <div className="border-t border-dark-700 my-1" />
+            </>)}
             <button onClick={() => { setLeftCompareItem(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left"><CompareIcon size={14}/> Set as L Compare</button>
             <button onClick={() => { if (leftCompareItem) setCompareActive({ left: leftCompareItem, right: contextMenu.item }); closeContext(); }} disabled={!leftCompareItem} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-blue-600 hover:text-white transition-colors text-left disabled:opacity-50 disabled:hover:bg-transparent"><CompareIcon size={14}/> Compare with L</button>
             {contextMenu.item.type === 'file' && selectionActions.map((action, i) => (
@@ -1600,6 +1642,12 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       )}
 
       {slideshowItems && <SlideshowModal items={slideshowItems} onClose={() => setSlideshowItems(null)} />}
+
+      {mdStatus && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[600] px-5 py-3 rounded-xl shadow-2xl text-sm font-medium flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 ${mdStatus.ok ? 'bg-emerald-800 border border-emerald-600 text-emerald-100' : 'bg-red-900 border border-red-700 text-red-200'}`}>
+          {mdStatus.ok ? '✓' : '✗'} {mdStatus.msg}
+        </div>
+      )}
 
       <CsvImportModal
         isOpen={csvImportOpen}

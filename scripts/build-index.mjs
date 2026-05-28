@@ -5,6 +5,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
+// ── Copy officeparser browser bundle ─────────────────────────────────────────
+const officeparserSrc  = join(root, 'node_modules/officeparser/dist/officeparser.browser.mjs');
+const officeparserDest = join(root, 'dist/vendor/officeparser.mjs');
+mkdirSync(join(root, 'dist/vendor'), { recursive: true });
+import { copyFileSync } from 'fs';
+copyFileSync(officeparserSrc, officeparserDest);
+console.log('✓ officeparser browser bundle copied to dist/vendor/officeparser.mjs');
+
 // ── Copy docMentis vendor files ──────────────────────────────────────────────
 // docMentis ships an 18 MB WASM. We vendor its ESM dist so it can be loaded
 // lazily via an import map, keeping the main IIFE ~1 MB instead of ~27 MB.
@@ -18,7 +26,7 @@ console.log('✓ docMentis vendor files copied to dist/vendor/docmentis/');
 
 // ── Import map snippet ────────────────────────────────────────────────────────
 const importMap = `  <script type="importmap">
-    {"imports":{"@docmentis/udoc-viewer":"./vendor/docmentis/index.js"}}
+    {"imports":{"@docmentis/udoc-viewer":"./vendor/docmentis/index.js","officeparser":"./vendor/officeparser.mjs"}}
   </script>`;
 
 // ── Patch index.html ──────────────────────────────────────────────────────────
