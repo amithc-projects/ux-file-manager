@@ -170,10 +170,37 @@ function HtmlViewer({ text }: { text: string | null, item: GridItem }) {
     );
 }
 
-export function FileViewer({ item, forceText, onSaveNewFile, onOpenSettings }: { item: GridItem, forceText?: boolean, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void>, onOpenSettings?: () => void }) {
+export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, onOpenSettings }: { item: GridItem, forceText?: boolean, markdownContent?: string, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void>, onOpenSettings?: () => void }) {
    const [fileObj, setFileObj] = useState<File | null>(null);
    const [textData, setTextData] = useState<string | null>(null);
    const [error, setError] = useState(false);
+
+   // When pre-converted markdown is provided, skip the file-read entirely.
+   if (markdownContent !== undefined) {
+       return (
+           <div className="w-full h-full overflow-y-auto p-6 md:p-10 bg-dark-900 text-gray-300 border border-dark-700 shadow-inner rounded-xl max-w-none text-left">
+               <ReactMarkdown
+                  components={{
+                     h1: ({node, ...props}) => <h1 className="text-3xl font-bold tracking-tight text-white mt-8 mb-4 pb-2 border-b border-dark-700" {...props} />,
+                     h2: ({node, ...props}) => <h2 className="text-2xl font-bold tracking-tight text-white mt-8 mb-4 border-b border-dark-700 pb-2" {...props} />,
+                     h3: ({node, ...props}) => <h3 className="text-xl font-bold tracking-tight text-white mt-6 mb-3" {...props} />,
+                     p:  ({node, ...props}) => <p  className="leading-relaxed mb-4 text-gray-300" {...props} />,
+                     ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-1 pl-4 text-gray-300" {...props} />,
+                     ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-1 pl-4 text-gray-300" {...props} />,
+                     li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
+                     code: ({node, ...props}) => <code className="bg-dark-800 text-blue-300 px-1.5 py-0.5 rounded font-mono text-sm" {...props} />,
+                     pre: ({node, ...props}) => <pre className="bg-dark-800 border border-dark-600 rounded-lg p-4 overflow-x-auto mb-4 font-mono text-sm text-gray-200" {...props} />,
+                     blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-400 mb-4" {...props} />,
+                     hr: ({node, ...props}) => <hr className="border-dark-600 my-6" {...props} />,
+                     a: ({node, ...props}) => <a className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                     table: ({node, ...props}) => <div className="overflow-x-auto mb-4"><table className="w-full border-collapse text-sm" {...props} /></div>,
+                     th: ({node, ...props}) => <th className="border border-dark-600 px-3 py-2 bg-dark-800 font-semibold text-white text-left" {...props} />,
+                     td: ({node, ...props}) => <td className="border border-dark-600 px-3 py-2 text-gray-300" {...props} />,
+                  }}
+               >{markdownContent}</ReactMarkdown>
+           </div>
+       );
+   }
 
    useEffect(() => {
        if (item.type !== 'file') return;

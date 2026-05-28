@@ -110,7 +110,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   const activeTheme = forceTheme ?? theme;
   
   // Modals & Popups
-  const [previewItem, setPreviewItem] = useState<{ item: GridItem, forceText?: boolean } | null>(null);
+  const [previewItem, setPreviewItem] = useState<{ item: GridItem, forceText?: boolean, markdownContent?: string } | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [pathPromptOpen, setPathPromptOpen] = useState(false);
   const [gapPrompt, setGapPrompt] = useState<{ id: string, resolve: (res: boolean) => void } | null>(null);
@@ -775,6 +775,19 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
     } catch (e: any) {
       showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
       if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_COPY_FAILED', message: e?.message });
+    }
+  };
+
+  const handleViewAsMarkdown = async (item: GridItem) => {
+    if (item.type !== 'file') return;
+    try {
+      const file = await item.pair.mainHandle.getFile();
+      const md = await convertToMarkdown(file);
+      setPreviewItem({ item, markdownContent: md });
+      if (onTelemetry) onTelemetry('filebrowser:action', { action: 'view-as-markdown', target: item.pair.id });
+    } catch (e: any) {
+      showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
+      if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_VIEW_FAILED', message: e?.message });
     }
   };
 
@@ -1561,6 +1574,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             )}
             {contextMenu.item.type === 'file' && isOfficeFile(contextMenu.item.pair.id) && (<>
                <div className="border-t border-dark-700 my-1" />
+               <button onClick={() => { handleViewAsMarkdown(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-emerald-700 hover:text-white transition-colors text-left"><FileText size={14}/> View as Markdown</button>
                <button onClick={() => { handleCopyAsMarkdown(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-emerald-700 hover:text-white transition-colors text-left"><ClipboardPaste size={14}/> Copy as Markdown</button>
                <button onClick={() => { handleSaveAsMarkdown(contextMenu.item); closeContext(); }} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-200 hover:bg-emerald-700 hover:text-white transition-colors text-left"><Download size={14}/> Save as Markdown</button>
                <div className="border-t border-dark-700 my-1" />
@@ -1582,6 +1596,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
          return <PreviewModal
          item={previewItem.item}
          forceText={previewItem.forceText}
+         markdownContent={previewItem.markdownContent}
          onClose={() => setPreviewItem(null)}
          onNavigate={(direction) => {
            const next = previewFileItems[previewIdx + (direction === 'next' ? 1 : -1)];
