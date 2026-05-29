@@ -82,6 +82,30 @@ See [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) for the full API reference.
 
 ---
 
+## Internationalization (i18n)
+
+The UI is fully translatable via [react-i18next](https://react.i18next.com/). English (`en`) is the bundled base and fallback. All locales are compiled into the IIFE bundle (no runtime HTTP fetch), and the active language is auto-detected from the browser — the host can override it with the `lang` attribute on the web component.
+
+### Adding a new language
+
+1. **Copy the base file**: duplicate `src/i18n/locales/en.json` to `src/i18n/locales/<code>.json` (e.g. `fr.json`) and translate every value. Keep the keys unchanged, and preserve `{{interpolation}}` placeholders and `_one` / `_other` plural suffixes.
+2. **Register it** in `src/i18n/index.ts` — import the JSON and add it to `resources`:
+   ```ts
+   import fr from './locales/fr.json';
+
+   export const resources = {
+     en: { translation: en },
+     fr: { translation: fr },
+   } as const;
+   ```
+   `SUPPORTED_LANGUAGES` and the in-app language picker (Settings → Language) update automatically.
+3. **Add the display name** under the `languages` key in **every** locale file (e.g. `"fr": "Français"`) so the new language appears correctly labelled in the picker.
+4. **Rebuild**: `npm run build`.
+
+Language can be selected at runtime via Settings → Language, the `?lang=<code>` query string, or the `lang` attribute on `<sidekick-manager>`. The choice is persisted in `localStorage` (`zl-fm-lang`).
+
+---
+
 ## Architecture
 
 | Layer | Technology |

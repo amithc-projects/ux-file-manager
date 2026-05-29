@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import JSZip from 'jszip';
 import { GridItem, WorkspaceFolder } from '../../core/models/FilePair';
 import { ScannerService } from '../../core/services/ScannerService';
@@ -68,6 +69,13 @@ export interface AppProps {
   allowedTypes?: TypeFilter[] | null;
   /** When set, overrides the user's theme preference. 'dark' | 'light' */
   forceTheme?: Theme;
+  /** When true, completely disables the docMentis Office viewer (DOCX/PPTX/XLSX
+   *  rich preview). The viewer lazily loads an ~18 MB WASM module, which is
+   *  undesirable in size-constrained hosts (e.g. the Chrome extension) and
+   *  cannot be vendored there. Office files then show a "preview unavailable"
+   *  message instead of attempting to load docMentis. The "View/Copy/Save as
+   *  Markdown" actions (which use the much smaller officeparser) are unaffected. */
+  disableOfficeViewer?: boolean;
 }
 
 export interface NavigateOptions {
@@ -83,7 +91,8 @@ export interface AppRef {
   getCurrentDirectoryHandle: () => FileSystemDirectoryHandle | null;
 }
 
-const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null, allowedTypes = null, forceTheme }, ref) => {
+const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hiddenFilesCount = 0, hiddenFilesMessage, compareMode = 'two-file', onCompareRender, onCompareInfo, customControlsHtml, onBindCustomControls, triggerProcessRef, selectionActions = [], noHashRouting = false, hideInspector = false, allowedFiles = null, allowedTypes = null, forceTheme, disableOfficeViewer = false }, ref) => {
+  const { t } = useTranslation();
   const [items, setItems] = useState<GridItem[]>([]);
   const [pathStack, setPathStack] = useState<FileSystemDirectoryHandle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -463,7 +472,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
   }, [stcConfig, items]);
 
   const builtInSelectionActions: SelectionAction[] = stcConfig
-    ? [{ label: 'Send to Cloud', icon: '☁', onClick: (ids) => handleSendToCloud(ids) }]
+    ? [{ label: t('app.sendToCloud'), icon: '☁', onClick: (ids) => handleSendToCloud(ids) }]
     : [];
 
   const allSelectionActions = [...builtInSelectionActions, ...selectionActions];
@@ -770,10 +779,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       const file = await item.pair.mainHandle.getFile();
       const md = await convertToMarkdown(file);
       await navigator.clipboard.writeText(md);
-      showMdStatus('Markdown copied to clipboard', true);
+      showMdStatus(t('app.markdownCopied'), true);
       if (onTelemetry) onTelemetry('filebrowser:action', { action: 'copy-as-markdown', target: item.pair.id });
     } catch (e: any) {
-      showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
+      showMdStatus(t('app.markdownFailed', { error: e?.message ?? 'unknown error' }), false);
       if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_COPY_FAILED', message: e?.message });
     }
   };
@@ -786,7 +795,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       setPreviewItem({ item, markdownContent: md });
       if (onTelemetry) onTelemetry('filebrowser:action', { action: 'view-as-markdown', target: item.pair.id });
     } catch (e: any) {
-      showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
+      showMdStatus(t('app.markdownFailed', { error: e?.message ?? 'unknown error' }), false);
       if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_VIEW_FAILED', message: e?.message });
     }
   };
@@ -799,7 +808,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
       downloadMarkdown(md, item.pair.id);
       if (onTelemetry) onTelemetry('filebrowser:action', { action: 'save-as-markdown', target: item.pair.id });
     } catch (e: any) {
-      showMdStatus(`Failed: ${e?.message ?? 'unknown error'}`, false);
+      showMdStatus(t('app.markdownFailed', { error: e?.message ?? 'unknown error' }), false);
       if (onTelemetry) onTelemetry('filebrowser:error', { code: 'MD_SAVE_FAILED', message: e?.message });
     }
   };
@@ -1018,7 +1027,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           {/* Logo / open workspace */}
           <button
             onClick={handleOpenRootFolder}
-            title={pathStack.length > 0 ? 'Open different workspace' : 'Open workspace'}
+            title={pathStack.length > 0 ? t('app.openDifferentWorkspace') : t('app.openWorkspace')}
             className="w-7 h-7 rounded-lg bg-blue-500 hover:bg-blue-400 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0 transition-colors"
           >
             <FolderOpen size={14} className="text-white" />
@@ -1029,7 +1038,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             {/* Scrollable breadcrumb path */}
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar font-medium text-sm tracking-tight scroll-smooth min-w-0">
               {pathStack.length === 0 ? (
-                 <span className="text-base font-semibold text-gray-300 whitespace-nowrap">ZumiLabs File Browser</span>
+                 <span className="text-base font-semibold text-gray-300 whitespace-nowrap">{t('app.brand')}</span>
               ) : (
                  pathStack.map((handle, idx) => (
                    <React.Fragment key={idx + handle.name}>
@@ -1099,7 +1108,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
           {/* New Path button (only when inside a folder) */}
           {currentDir && (
-            <button onClick={() => setPathPromptOpen(true)} title="New Path" className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors shrink-0">
+            <button onClick={() => setPathPromptOpen(true)} title={t('app.newPath')} className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors shrink-0">
               <FolderPlus size={15} />
             </button>
           )}
@@ -1107,7 +1116,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           {/* Settings button */}
           <button
             onClick={() => setSettingsOpen(true)}
-            title="Settings"
+            title={t('app.settings')}
             className="p-1.5 rounded-lg transition-colors shrink-0 text-gray-400 hover:text-white hover:bg-dark-700"
           >
             <Settings size={15} />
@@ -1117,7 +1126,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           <div className="relative shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); setBookmarksPanelOpen(o => !o); setCollectionPanelOpen(false); }}
-              title="Bookmarks"
+              title={t('app.bookmarks')}
               className={`p-1.5 rounded-lg transition-colors ${bookmarksPanelOpen ? 'bg-dark-700 text-yellow-400' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
             >
               <Bookmark size={15} />
@@ -1127,13 +1136,13 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                 <div className="fixed inset-0 z-40" onClick={() => setBookmarksPanelOpen(false)} />
                 <div className="absolute top-full right-0 mt-1 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-xl z-50 overflow-hidden py-1 max-h-80 overflow-y-auto">
                   <div className="px-3 py-2 border-b border-dark-700 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-yellow-400">Bookmarks</span>
+                    <span className="text-xs font-semibold text-yellow-400">{t('app.bookmarks')}</span>
                   </div>
                   {bookmarks.length === 0 ? (
                     <div className="px-3 py-6 text-center text-xs text-gray-500">
                       <Bookmark size={24} className="mx-auto mb-2 opacity-30" />
-                      <p>No bookmarks yet.</p>
-                      <p className="mt-1 text-yellow-500/70">Right-click a folder to bookmark it</p>
+                      <p>{t('app.noBookmarks')}</p>
+                      <p className="mt-1 text-yellow-500/70">{t('app.bookmarkHint')}</p>
                     </div>
                   ) : bookmarks.map(bm => (
                     <div key={bm.id} className="flex items-center justify-between px-3 py-2 text-sm group cursor-pointer hover:bg-dark-700 transition-colors"
@@ -1157,7 +1166,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           <div className="relative shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); setCollectionPanelOpen(o => !o); setBookmarksPanelOpen(false); }}
-              title="Collection"
+              title={t('app.collection')}
               className={`relative p-1.5 rounded-lg transition-colors ${collectionPanelOpen || collectionViewOpen ? 'bg-dark-700 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-dark-700'}`}
             >
               <BoxSelect size={15} />
@@ -1172,16 +1181,16 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                 <div className="fixed inset-0 z-40" onClick={() => setCollectionPanelOpen(false)} />
                 <div className="absolute top-full right-0 mt-1 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-96">
                   <div className="px-3 py-2 border-b border-dark-700 flex items-center justify-between shrink-0">
-                    <span className="text-xs font-semibold text-blue-400">{collection.length} item{collection.length !== 1 ? 's' : ''} in Collection</span>
+                    <span className="text-xs font-semibold text-blue-400">{t('app.itemsInCollection', { count: collection.length })}</span>
                     {collection.length > 0 && (
-                      <button onClick={() => { setCollection([]); setCollectionViewOpen(false); }} className="text-xs text-red-400 hover:text-red-300 transition-colors">Clear</button>
+                      <button onClick={() => { setCollection([]); setCollectionViewOpen(false); }} className="text-xs text-red-400 hover:text-red-300 transition-colors">{t('common.clear')}</button>
                     )}
                   </div>
                   {collection.length === 0 ? (
                     <div className="px-3 py-6 text-center text-xs text-gray-500">
                       <BoxSelect size={24} className="mx-auto mb-2 opacity-30" />
-                      <p>Collection is empty.</p>
-                      <p className="mt-1 text-gray-600">Right-click items to add them</p>
+                      <p>{t('app.collectionEmpty')}</p>
+                      <p className="mt-1 text-gray-600">{t('app.collectionHint')}</p>
                     </div>
                   ) : (
                     <>
@@ -1203,12 +1212,12 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                           onClick={() => { setCollectionViewOpen(o => !o); setCollectionPanelOpen(false); }}
                           className={`w-full py-1.5 rounded text-xs font-medium transition-colors ${collectionViewOpen ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-dark-700 hover:bg-dark-600 text-gray-200'}`}
                         >
-                          {collectionViewOpen ? 'Close Collection View' : 'View Collection'}
+                          {collectionViewOpen ? t('app.closeCollectionView') : t('app.viewCollection')}
                         </button>
                         <div className="grid grid-cols-2 gap-1.5">
-                          <button onClick={() => handleCollectionBatch('zip')} className="py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs text-white font-medium">ZIP</button>
-                          <button onClick={() => handleCollectionBatch('copy')} className="py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white font-medium">Copy here</button>
-                          <button onClick={() => handleCollectionBatch('move')} className="py-1.5 bg-dark-600 hover:bg-dark-500 rounded text-xs text-white font-medium col-span-2">Move here</button>
+                          <button onClick={() => handleCollectionBatch('zip')} className="py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs text-white font-medium">{t('app.zip')}</button>
+                          <button onClick={() => handleCollectionBatch('copy')} className="py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white font-medium">{t('app.copyHere')}</button>
+                          <button onClick={() => handleCollectionBatch('move')} className="py-1.5 bg-dark-600 hover:bg-dark-500 rounded text-xs text-white font-medium col-span-2">{t('app.moveHere')}</button>
                         </div>
                       </div>
                     </>
@@ -1223,7 +1232,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Filter…"
+              placeholder={t('app.filterPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-dark-900 border border-dark-600 rounded-lg py-1 pl-8 pr-7 text-sm focus:outline-none focus:border-blue-500 transition-shadow"
@@ -1243,24 +1252,24 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           <div className="flex items-center gap-2 shrink-0">
             {/* Sort */}
             <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600">
-              <span className="text-gray-500">Sort:</span>
+              <span className="text-gray-500">{t('app.sort')}</span>
               <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
-                <option value="name" className="bg-dark-800">Name</option>
-                <option value="type" className="bg-dark-800">Type</option>
-                <option value="date" className="bg-dark-800">Date</option>
-                <option value="size" className="bg-dark-800">Size</option>
+                <option value="name" className="bg-dark-800">{t('app.sortName')}</option>
+                <option value="type" className="bg-dark-800">{t('app.sortType')}</option>
+                <option value="date" className="bg-dark-800">{t('app.sortDate')}</option>
+                <option value="size" className="bg-dark-800">{t('app.sortSize')}</option>
               </select>
-              <button onClick={() => setSortAsc(!sortAsc)} className="p-0.5 text-gray-400 hover:text-white rounded transition-colors" title={sortAsc ? 'Ascending' : 'Descending'}>
+              <button onClick={() => setSortAsc(!sortAsc)} className="p-0.5 text-gray-400 hover:text-white rounded transition-colors" title={sortAsc ? t('app.ascending') : t('app.descending')}>
                 {sortAsc ? <SortAsc size={13} /> : <SortDesc size={13} />}
               </button>
             </div>
 
             {/* Group */}
             <div className="flex items-center gap-1 text-xs text-gray-400 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600">
-              <span className="text-gray-500">Group:</span>
+              <span className="text-gray-500">{t('app.group')}</span>
               <select className="bg-transparent text-white focus:outline-none cursor-pointer text-xs" value={groupBy} onChange={e => setGroupBy(e.target.value as GroupBy)}>
-                <option value="none" className="bg-dark-800">None</option>
-                <option value="type" className="bg-dark-800">Type</option>
+                <option value="none" className="bg-dark-800">{t('app.groupNone')}</option>
+                <option value="type" className="bg-dark-800">{t('app.groupType')}</option>
               </select>
             </div>
           </div>
@@ -1272,7 +1281,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               <div className="flex items-center gap-1 bg-dark-900 px-2 py-1 rounded-lg border border-dark-600 w-max max-w-full">
                 {selectedIds.size > 0 && (
                   <>
-                    <span className="px-2 text-xs font-bold text-white border-r border-dark-600 whitespace-nowrap mr-1">{selectedIds.size} Selected</span>
+                    <span className="px-2 text-xs font-bold text-white border-r border-dark-600 whitespace-nowrap mr-1">{t('app.selectedCount', { count: selectedIds.size })}</span>
                     {selectedIds.size === 2 && (
                       <button onClick={() => {
                         const arr = selectedIdsArray.filter(Boolean);
@@ -1349,7 +1358,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                     <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-red-400 rounded text-xs font-medium text-gray-300 transition-colors">
                       <Trash2 size={13} /> Delete
                     </button>
-                    <button onClick={clearSelection} className="p-1 hover:bg-dark-700 rounded-lg text-gray-500 hover:text-white transition-colors ml-1" title="Clear selection">
+                    <button onClick={clearSelection} className="p-1 hover:bg-dark-700 rounded-lg text-gray-500 hover:text-white transition-colors ml-1" title={t('app.clearSelection')}>
                       <X size={13} />
                     </button>
                   </>
@@ -1357,11 +1366,11 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                 {selectedIds.size > 0 && clipboardItems.length > 0 && <div className="w-px h-4 bg-dark-600 mx-1" />}
                 {clipboardItems.length > 0 && (
                   <>
-                    <span className="px-2 text-xs font-bold text-white border-r border-dark-600 whitespace-nowrap">{clipboardItems.length} Copied</span>
+                    <span className="px-2 text-xs font-bold text-white border-r border-dark-600 whitespace-nowrap">{t('app.copiedCount', { count: clipboardItems.length })}</span>
                     <button onClick={executePasteClipboard} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-dark-700 hover:text-blue-400 rounded text-xs font-medium text-gray-300 transition-colors">
                       <ClipboardPaste size={13} /> Paste Here
                     </button>
-                    <button onClick={() => setClipboardItems([])} className="p-1 hover:bg-dark-700 hover:text-red-400 rounded-lg transition-colors ml-1" title="Clear clipboard">
+                    <button onClick={() => setClipboardItems([])} className="p-1 hover:bg-dark-700 hover:text-red-400 rounded-lg transition-colors ml-1" title={t('app.clearClipboard')}>
                       <X size={13} />
                     </button>
                   </>
@@ -1386,7 +1395,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                 step={20}
                 value={thumbnailSize}
                 onChange={e => { const v = Number(e.target.value); setThumbnailSize(v); localStorage.setItem('zl_fb_thumb_size', String(v)); }}
-                title="Thumbnail size"
+                title={t('app.thumbnailSize')}
                 className="w-20 h-1 accent-blue-500 cursor-pointer"
               />
               <LayoutGrid size={16} className="text-gray-500" />
@@ -1395,10 +1404,10 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
           {/* View mode */}
           <div className={`flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0 ${viewMode !== 'grid' && viewMode !== 'filmstrip' ? 'ml-auto' : ''}`}>
-            <button title="Grid View" onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
-            <button title="Filmstrip View" onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
-            <button title="List View" onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
-            <button title="Data Sheet" onClick={() => setViewMode('data')} className={`p-1.5 rounded-md ${viewMode === 'data' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Table2 size={15} /></button>
+            <button title={t('app.gridView')} onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><LayoutGrid size={15} /></button>
+            <button title={t('app.filmstripView')} onClick={() => setViewMode('filmstrip')} className={`p-1.5 rounded-md ${viewMode === 'filmstrip' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><GalleryHorizontal size={15} /></button>
+            <button title={t('app.listView')} onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><List size={15} /></button>
+            <button title={t('app.dataSheet')} onClick={() => setViewMode('data')} className={`p-1.5 rounded-md ${viewMode === 'data' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}><Table2 size={15} /></button>
           </div>
         </div>
       </header>
@@ -1412,9 +1421,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           {collectionViewOpen && (
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-900/40 border-b border-blue-500/30 shrink-0 text-sm">
               <BoxSelect size={14} className="text-blue-400 shrink-0" />
-              <span className="text-blue-300 font-medium">Collection</span>
-              <span className="text-blue-400/60">— virtual view, not a folder on disk</span>
-              <span className="ml-auto text-blue-400 font-semibold">{collection.length} item{collection.length !== 1 ? 's' : ''}</span>
+              <span className="text-blue-300 font-medium">{t('app.collection')}</span>
+              <span className="text-blue-400/60">{t('app.collectionBanner')}</span>
+              <span className="ml-auto text-blue-400 font-semibold">{t('app.itemsCount', { count: collection.length })}</span>
               <button onClick={() => setCollectionViewOpen(false)} className="ml-2 text-blue-400/60 hover:text-blue-200 transition-colors"><X size={14} /></button>
             </div>
           )}
@@ -1423,7 +1432,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
              <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 backdrop-blur-sm">
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm font-medium text-blue-400">Processing...</span>
+                  <span className="text-sm font-medium text-blue-400">{t('app.processing')}</span>
                 </div>
              </div>
           ) : collectionViewOpen ? (
@@ -1445,12 +1454,12 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
           ) : pathStack.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 max-w-xl text-center m-auto h-full w-full">
               <FolderOpen size={64} className="mb-6 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
-              <h2 className="text-2xl font-bold text-white mb-2">Welcome to ZumiLabs File Browser</h2>
-              <button onClick={handleOpenRootFolder} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg font-medium text-white transition-all transform hover:scale-105 mb-12 mt-4">Select Local Directory</button>
+              <h2 className="text-2xl font-bold text-white mb-2">{t('app.welcome')}</h2>
+              <button onClick={handleOpenRootFolder} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg font-medium text-white transition-all transform hover:scale-105 mb-12 mt-4">{t('app.selectLocalDirectory')}</button>
               
               {recentWorkspaces.length > 0 && (
                  <div className="w-full flex flex-col items-center border-t border-dark-700 pt-8 animate-in fade-in">
-                    <h3 className="text-sm tracking-wider text-gray-500 font-bold mb-4 flex items-center gap-2"><History size={16} /> Continue where you left off</h3>
+                    <h3 className="text-sm tracking-wider text-gray-500 font-bold mb-4 flex items-center gap-2"><History size={16} /> {t('app.continueWhereLeftOff')}</h3>
                     <div className="flex flex-wrap gap-3 justify-center">
                        {recentWorkspaces.slice(0, 5).map(ws => (
                           <button key={ws.id} onClick={() => handleResumeWorkspace(ws)} className="flex items-center gap-2 px-4 py-2 bg-dark-800 border border-dark-600 hover:border-blue-500 rounded-lg text-sm text-gray-300 transition-colors shadow-sm">
@@ -1462,7 +1471,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
               )}
             </div>
           ) : processedGroups.reduce((acc, curr) => acc + curr.items.length, 0) === 0 ? (
-             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>Directory Empty</p></div>
+             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 m-auto h-full w-full"><SearchX size={48} className="mb-4 opacity-50" /><p>{t('app.directoryEmpty')}</p></div>
           ) : compareMode === 'transform' ? (
             <TransformCompareView
               groups={processedGroups}
@@ -1530,9 +1539,9 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
       {gapPrompt && (
         <ConfirmModal 
-           isOpen={true} title="Leave gap in selection order?"
-           message="Do you want to maintain the specific ordering constraints for the rest of your selections by leaving a structural gap here?"
-           confirmText="Leave Gap" cancelText="Shift Order (Close Gap)"
+           isOpen={true} title={t('app.gapTitle')}
+           message={t('app.gapMessage')}
+           confirmText={t('app.gapConfirm')} cancelText={t('app.gapCancel')}
            onConfirm={() => { gapPrompt.resolve(true); setGapPrompt(null); }}
            onCancel={() => { gapPrompt.resolve(false); setGapPrompt(null); }}
         />
@@ -1540,8 +1549,8 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
 
       {deleteModalOpen && (
         <ConfirmModal 
-          isOpen={true} title="Delete Selected Items" isDestructive={true}
-          confirmText="Delete permanently"
+          isOpen={true} title={t('app.deleteTitle')} isDestructive={true}
+          confirmText={t('app.deleteConfirm')}
           message={`Are you sure you want to delete the ${selectedIds.size} items? Associated metadata will also be deleted.`}
           onCancel={() => setDeleteModalOpen(false)}
           onConfirm={() => executeDeleteMode(items.filter(i => selectedIds.has(i.type === 'file' ? i.pair.id : i.name)))}
@@ -1597,6 +1606,7 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
          item={previewItem.item}
          forceText={previewItem.forceText}
          markdownContent={previewItem.markdownContent}
+         disableOfficeViewer={disableOfficeViewer}
          onClose={() => setPreviewItem(null)}
          onNavigate={(direction) => {
            const next = previewFileItems[previewIdx + (direction === 'next' ? 1 : -1)];
@@ -1646,13 +1656,13 @@ const App = React.forwardRef<AppRef, AppProps>(({ onTelemetry, customSort, hidde
                    <p className="text-xs text-blue-400 font-mono tracking-wider">.{globalTooltip.item.pair.id.split('.').pop()?.toUpperCase() || 'FILE'}</p>
                    <div className="flex items-center gap-4 text-xs text-gray-400">
                       <span>{globalTooltip.item.pair.size ? `${(globalTooltip.item.pair.size / 1024).toFixed(2)} KB` : '0 KB'}</span>
-                      <span>{globalTooltip.item.pair.lastModified ? new Date(globalTooltip.item.pair.lastModified).toLocaleString() : 'N/A'}</span>
+                      <span>{globalTooltip.item.pair.lastModified ? new Date(globalTooltip.item.pair.lastModified).toLocaleString() : t('common.notAvailable')}</span>
                    </div>
                    {tooltipDimCache.current[globalTooltip.item.pair.id] && (
                      <p className="text-xs text-gray-400">{tooltipDimCache.current[globalTooltip.item.pair.id]} px</p>
                    )}
                 </div>
-             ) : <p className="text-xs text-gray-500 mt-1">Directory / Folder</p>}
+             ) : <p className="text-xs text-gray-500 mt-1">{t('app.directoryFolder')}</p>}
           </div>
       )}
 

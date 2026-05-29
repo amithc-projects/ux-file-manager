@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, GitCompare } from 'lucide-react';
 
 interface FolderDiffModalProps {
@@ -27,6 +28,7 @@ const formatBytes = (bytes?: number) => {
 };
 
 export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiffModalProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [diffs, setDiffs] = useState<DiffItem[]>([]);
   const [viewMode, setViewMode] = useState<'unified' | 'side'>('side');
@@ -117,18 +119,18 @@ export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiff
           <div className="flex items-center gap-6">
              <h2 className="flex items-center gap-3 font-semibold text-lg text-gray-100">
                 <GitCompare size={20} className="text-blue-400" />
-                Folder Diff: 
+                {t('folderDiff.title')}
                 <span className="text-gray-400 px-2 py-0.5 bg-dark-950 rounded text-sm font-mono border border-dark-700">{handleLeft.name}</span>
-                <span className="text-gray-600 text-sm">vs</span>
+                <span className="text-gray-600 text-sm">{t('folderDiff.vs')}</span>
                 <span className="text-gray-400 px-2 py-0.5 bg-dark-950 rounded text-sm font-mono border border-dark-700">{handleRight.name}</span>
              </h2>
 
              <div className="flex bg-dark-950 p-1 rounded-lg border border-dark-700 shadow-inner">
                <button onClick={() => setViewMode('unified')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'unified' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-                 Unified
+                 {t('folderDiff.unified')}
                </button>
                <button onClick={() => setViewMode('side')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'side' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-                 Side-by-Side
+                 {t('folderDiff.sideBySide')}
                </button>
              </div>
           </div>
@@ -141,7 +143,7 @@ export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiff
            {loading ? (
               <div className="flex-1 flex flex-col items-center justify-center">
                   <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <span className="text-sm font-medium text-blue-400">Deep scanning handles...</span>
+                  <span className="text-sm font-medium text-blue-400">{t('folderDiff.scanning')}</span>
               </div>
            ) : (
               <div className="flex-1 overflow-auto px-4 pb-4">
@@ -149,19 +151,19 @@ export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiff
                  {viewMode === 'unified' ? (
                      <>
                          <div className="grid grid-cols-[minmax(200px,1fr)_120px_100px_100px_150px_150px] gap-2 mb-2 px-4 pt-4 py-2 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-dark-700 sticky top-0 bg-dark-950 z-20">
-                            <div>Filename</div>
-                            <div>State</div>
-                            <div>Size (L)</div>
-                            <div>Size (R)</div>
-                            <div>Date (L)</div>
-                            <div>Date (R)</div>
+                            <div>{t('folderDiff.filename')}</div>
+                            <div>{t('folderDiff.state')}</div>
+                            <div>{t('folderDiff.sizeL')}</div>
+                            <div>{t('folderDiff.sizeR')}</div>
+                            <div>{t('folderDiff.dateL')}</div>
+                            <div>{t('folderDiff.dateR')}</div>
                          </div>
         
                          <div className="flex flex-col gap-1">
                             {diffs.map((d, i) => (
                                <div key={i} className={`grid grid-cols-[minmax(200px,1fr)_120px_100px_100px_150px_150px] gap-2 px-4 py-2 text-sm items-center border rounded-lg ${stateColors[d.state]}`}>
                                   <div className="truncate font-medium">{d.isFolder ? `📁 ${d.name}` : `📄 ${d.name}`}</div>
-                                  <div className="font-bold tracking-wide text-xs uppercase">{d.state}</div>
+                                  <div className="font-bold tracking-wide text-xs uppercase">{t(`folderDiff.states.${d.state}`)}</div>
                                   <div className="font-mono text-xs">{formatBytes(d.sizeL)}</div>
                                   <div className="font-mono text-xs">{formatBytes(d.sizeR)}</div>
                                   <div className="font-mono text-xs truncate" title={d.dateL ? new Date(d.dateL).toLocaleString() : ''}>{d.dateL ? new Date(d.dateL).toLocaleDateString() : '--'}</div>
@@ -175,11 +177,11 @@ export function FolderDiffModal({ handleLeft, handleRight, onClose }: FolderDiff
                          <div className="flex gap-2 mb-2 px-4 pt-4 py-2 font-bold text-xs uppercase tracking-wider text-gray-500 border-b border-dark-700 sticky top-0 bg-dark-950 z-20">
                             <div className="flex-1 flex justify-between px-2 min-w-0">
                                 <span className="truncate mr-2">{handleLeft.name}</span>
-                                <span className="shrink-0">Size & Date</span>
+                                <span className="shrink-0">{t('folderDiff.sizeAndDate')}</span>
                             </div>
                             <div className="flex-1 flex justify-between px-2 min-w-0">
                                 <span className="truncate mr-2">{handleRight.name}</span>
-                                <span className="shrink-0">Size & Date</span>
+                                <span className="shrink-0">{t('folderDiff.sizeAndDate')}</span>
                             </div>
                          </div>
                          <div className="flex flex-col gap-1">

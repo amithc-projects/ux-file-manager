@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Play, Pause, X, Maximize } from 'lucide-react';
 import { GridItem } from '../../core/models/FilePair';
 
@@ -8,6 +9,7 @@ interface SlideshowModalProps {
 }
 
 export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
+    const { t } = useTranslation();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -89,7 +91,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
                     <button
                         onClick={() => { setIsPlaying(false); handlePrev(); }}
                         className="text-gray-300 hover:text-white transition-colors p-1"
-                        title="Previous (←)"
+                        title={t('slideshow.previous')}
                     >
                         <ChevronLeft size={24} />
                     </button>
@@ -98,7 +100,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
                     <button
                         onClick={() => setIsPlaying(p => !p)}
                         className="w-9 h-9 bg-white text-black flex items-center justify-center rounded-full hover:bg-gray-200 transition-transform hover:scale-105 active:scale-95 shadow-lg"
-                        title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+                        title={isPlaying ? t('slideshow.pause') : t('slideshow.play')}
                     >
                         {isPlaying
                             ? <Pause size={16} className="fill-current" />
@@ -109,7 +111,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
                     <button
                         onClick={() => { setIsPlaying(false); handleNext(); }}
                         className="text-gray-300 hover:text-white transition-colors p-1"
-                        title="Next (→)"
+                        title={t('slideshow.next')}
                     >
                         <ChevronRight size={24} />
                     </button>
@@ -120,7 +122,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
                     <button
                         onClick={toggleFullscreen}
                         className="text-gray-300 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
-                        title="Fullscreen"
+                        title={t('slideshow.fullscreen')}
                     >
                         <Maximize size={18} />
                     </button>
@@ -129,7 +131,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
                     <button
                         onClick={onClose}
                         className="text-gray-300 hover:text-white transition-colors p-2 rounded-lg hover:bg-red-500/80"
-                        title="Close (Esc)"
+                        title={t('slideshow.close')}
                     >
                         <X size={18} />
                     </button>
@@ -150,7 +152,7 @@ export function SlideshowModal({ items, onClose }: SlideshowModalProps) {
             {/* Fullscreen: minimal exit hint */}
             {isFullscreen && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/30 text-xs pointer-events-none">
-                    Esc to exit · ← → to navigate · Space to pause
+                    {t('slideshow.fullscreenHint')}
                 </div>
             )}
         </div>

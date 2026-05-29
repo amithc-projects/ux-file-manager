@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
 import { SidecarService } from '../../core/services/SidecarService';
 import { GridItem } from '../../core/models/FilePair';
@@ -34,6 +35,7 @@ function parseCsv(text: string): string[][] {
 }
 
 export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }: CsvImportModalProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<'pick' | 'map' | 'preview' | 'importing' | 'done'>('pick');
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -69,7 +71,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
     const matched = csvRows.filter(row => {
       const fn = row[filenameCol]?.trim();
       if (!fn) return false;
-      if (!fileItems.includes(fn)) { warns.push(`"${fn}" not found in folder`); return false; }
+      if (!fileItems.includes(fn)) { warns.push(t('csvImport.notFound', { name: fn })); return false; }
       return true;
     });
     setWarnings(warns);
@@ -113,7 +115,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
       <div className="bg-dark-800 border border-dark-600 rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
-          <h2 className="text-base font-semibold text-white">Import CSV</h2>
+          <h2 className="text-base font-semibold text-white">{t('csvImport.title')}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
         </div>
 
@@ -124,10 +126,10 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
             <div className="flex flex-col items-center gap-4 py-8">
               <Upload size={40} className="text-blue-400" />
               <p className="text-gray-300 text-sm text-center max-w-sm">
-                Select a CSV file. The first row should be column headers. One column must contain the image filenames.
+                {t('csvImport.pickHint')}
               </p>
               <label className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white cursor-pointer transition-colors">
-                Choose CSV file
+                {t('csvImport.chooseFile')}
                 <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFilePick} className="hidden" />
               </label>
             </div>
@@ -137,29 +139,29 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
           {step === 'map' && (
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1 font-medium">Which column contains the filename?</label>
+                <label className="block text-xs text-gray-400 mb-1 font-medium">{t('csvImport.whichColumn')}</label>
                 <select
                   value={filenameCol}
                   onChange={e => setFilenameCol(Number(e.target.value))}
                   className="w-full bg-dark-700 border border-dark-600 rounded px-3 py-2 text-sm text-white"
                 >
                   {headers.map((h, i) => (
-                    <option key={i} value={i}>{h || `Column ${i + 1}`}</option>
+                    <option key={i} value={i}>{h || t('csvImport.column', { number: i + 1 })}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-2 font-medium">Map other columns to metadata field names:</p>
+                <p className="text-xs text-gray-400 mb-2 font-medium">{t('csvImport.mapHint')}</p>
                 <div className="flex flex-col gap-2">
                   {headers.map((h, i) => i === filenameCol ? null : (
                     <div key={i} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 w-28 truncate" title={h}>CSV: <span className="text-gray-300">{h}</span></span>
+                      <span className="text-xs text-gray-500 w-28 truncate" title={h}>{t('csvImport.csvLabel')} <span className="text-gray-300">{h}</span></span>
                       <span className="text-gray-600">→</span>
                       <input
                         type="text"
                         value={fieldNames[i] ?? h}
                         onChange={e => setFieldNames(prev => { const n = [...prev]; n[i] = e.target.value; return n; })}
-                        placeholder="metadata field name"
+                        placeholder={t('csvImport.fieldNamePlaceholder')}
                         className="flex-1 bg-dark-700 border border-dark-600 rounded px-2 py-1 text-xs text-white"
                       />
                     </div>
@@ -176,7 +178,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
               {warnings.length > 0 && (
                 <div className="bg-amber-900/30 border border-amber-500/40 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2 text-amber-400 text-xs font-medium">
-                    <AlertTriangle size={14} /> {warnings.length} unmatched filename{warnings.length !== 1 ? 's' : ''}
+                    <AlertTriangle size={14} /> {t('csvImport.unmatched', { count: warnings.length })}
                   </div>
                   <ul className="text-xs text-amber-300/80 list-disc list-inside space-y-0.5 max-h-24 overflow-y-auto">
                     {warnings.map((w, i) => <li key={i}>{w}</li>)}
@@ -184,13 +186,13 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
                 </div>
               )}
               <p className="text-xs text-gray-400">
-                {csvRows.filter(r => fileItems.includes(r[filenameCol]?.trim())).length} files will be updated.
+                {t('csvImport.filesWillUpdate', { count: csvRows.filter(r => fileItems.includes(r[filenameCol]?.trim())).length })}
               </p>
               <div className="overflow-x-auto border border-dark-700 rounded-lg">
                 <table className="w-full text-xs">
                   <thead className="bg-dark-700">
                     <tr>
-                      <th className="px-3 py-2 text-left text-gray-400">Filename</th>
+                      <th className="px-3 py-2 text-left text-gray-400">{t('csvImport.filename')}</th>
                       {headers.map((_, i) => i === filenameCol ? null : (
                         <th key={i} className="px-3 py-2 text-left text-blue-400">{fieldNames[i] || headers[i]}</th>
                       ))}
@@ -208,7 +210,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
                   </tbody>
                 </table>
                 {csvRows.filter(r => fileItems.includes(r[filenameCol]?.trim())).length > 5 && (
-                  <p className="text-xs text-gray-600 px-3 py-2 border-t border-dark-700">+ more rows…</p>
+                  <p className="text-xs text-gray-600 px-3 py-2 border-t border-dark-700">{t('csvImport.moreRows')}</p>
                 )}
               </div>
             </div>
@@ -220,7 +222,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
               <div className="w-full bg-dark-700 rounded-full h-2">
                 <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
               </div>
-              <p className="text-sm text-gray-300">Writing metadata… {progress}%</p>
+              <p className="text-sm text-gray-300">{t('csvImport.writingMetadata', { progress })}</p>
             </div>
           )}
 
@@ -228,7 +230,7 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
           {step === 'done' && (
             <div className="flex flex-col items-center gap-3 py-8">
               <CheckCircle size={40} className="text-green-400" />
-              <p className="text-gray-300 text-sm">Import complete. Metadata has been written.</p>
+              <p className="text-gray-300 text-sm">{t('csvImport.importComplete')}</p>
             </div>
           )}
         </div>
@@ -236,20 +238,20 @@ export function CsvImportModal({ isOpen, onClose, dirHandle, items, onComplete }
         {/* Footer */}
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-dark-700">
           {step === 'done' ? (
-            <button onClick={onClose} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white">Done</button>
+            <button onClick={onClose} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white">{t('csvImport.done')}</button>
           ) : step === 'importing' ? null : (
             <>
               <button onClick={step === 'pick' ? onClose : reset} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200">
-                {step === 'pick' ? 'Cancel' : 'Back'}
+                {step === 'pick' ? t('common.cancel') : t('csvImport.back')}
               </button>
               {step === 'map' && (
                 <button onClick={() => buildPreview()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm text-white">
-                  Preview
+                  {t('csvImport.preview')}
                 </button>
               )}
               {step === 'preview' && (
                 <button onClick={runImport} className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm text-white">
-                  Import
+                  {t('csvImport.import')}
                 </button>
               )}
             </>

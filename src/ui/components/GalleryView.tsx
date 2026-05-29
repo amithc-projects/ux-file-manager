@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
 import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces, FileText, FileCode, Archive, Hash } from 'lucide-react';
@@ -128,6 +129,7 @@ function GalleryThumbnail({ item, isSelected, selectionOrderIndex, totalSelected
 
 // Master Stage Logic
 export function GalleryView({ groups, selectedIdsArray, onItemClick, onItemDoubleClick, onItemContextMenu }: GalleryViewProps) {
+    const { t } = useTranslation();
     const allItems = groups.flatMap(g => g.items);
     
     // Find the master focus index. Fallback to entirely 0 if neither array matches.
@@ -146,7 +148,7 @@ export function GalleryView({ groups, selectedIdsArray, onItemClick, onItemDoubl
                 <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
                     <Folder size={128} className="text-blue-500/80 drop-shadow-[0_15px_30px_rgba(59,130,246,0.3)] pointer-events-none" fill="currentColor"/>
                     <h2 className="text-2xl font-bold font-mono tracking-tight text-white">{focusedItem.name}</h2>
-                    <span className="text-sm bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full border border-blue-500/30">Directory Node</span>
+                    <span className="text-sm bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full border border-blue-500/30">{t('gallery.directoryNode')}</span>
                 </div>
             );
         }
@@ -171,8 +173,8 @@ export function GalleryView({ groups, selectedIdsArray, onItemClick, onItemDoubl
             {/* Bottom Scroller: Detail Carousel */}
             <div className="h-44 w-full bg-dark-900 flex flex-col shrink-0">
                 <div className="px-6 py-2 border-b border-dark-700/50 flex items-center justify-between shadow-sm bg-dark-900 z-10 shrink-0">
-                   <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500">Carousel Roll</h3>
-                   <span className="text-xs text-gray-400 font-mono bg-dark-800 px-2 py-0.5 rounded shadow-inner border border-dark-700">{allItems.length} Elements</span>
+                   <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500">{t('gallery.carouselRoll')}</h3>
+                   <span className="text-xs text-gray-400 font-mono bg-dark-800 px-2 py-0.5 rounded shadow-inner border border-dark-700">{t('gallery.elements', { count: allItems.length })}</span>
                 </div>
                 
                 <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 py-4 flex items-center gap-4 scroll-smooth">

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GridItem } from '../../core/models/FilePair';
 import { SidecarService } from '../../core/services/SidecarService';
 import { useThumbnails } from '../hooks/useThumbnails';
@@ -18,6 +19,7 @@ interface DataSheetViewProps {
 }
 
 export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv }: DataSheetViewProps) {
+  const { t } = useTranslation();
   const mediaItems = items.filter(isMediaFile);
 
   // Discover all asset keys across existing sidecars
@@ -132,7 +134,7 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
             <span className="text-gray-300 text-xs font-mono truncate max-w-[200px]" title={item.pair.id}>
               {item.pair.id}
             </span>
-            {isSaving && <span className="text-blue-400 text-xs animate-pulse">saving…</span>}
+            {isSaving && <span className="text-blue-400 text-xs animate-pulse">{t('dataSheet.saving')}</span>}
           </div>
         </td>
         {columns.map(col => (
@@ -155,7 +157,7 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
   if (mediaItems.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
-        <p>No image or video files in this folder.</p>
+        <p>{t('dataSheet.noMedia')}</p>
       </div>
     );
   }
@@ -164,20 +166,20 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-dark-700 bg-dark-800 shrink-0">
-        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Data Sheet</span>
-        <span className="text-xs text-gray-600">— {mediaItems.length} files · edit cells to write metadata</span>
+        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">{t('dataSheet.title')}</span>
+        <span className="text-xs text-gray-600">{t('dataSheet.subtitle', { count: mediaItems.length })}</span>
         <div className="ml-auto flex gap-2">
           <button
             onClick={onImportCsv}
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-dark-700 hover:bg-dark-600 text-gray-300 border border-dark-600"
           >
-            <Upload size={12} /> Import CSV
+            <Upload size={12} /> {t('dataSheet.importCsv')}
           </button>
           <button
             onClick={exportCsv}
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-dark-700 hover:bg-dark-600 text-gray-300 border border-dark-600"
           >
-            <Download size={12} /> Export CSV
+            <Download size={12} /> {t('dataSheet.exportCsv')}
           </button>
         </div>
       </div>
@@ -189,7 +191,7 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
             <tr>
               <th className="w-12 border-b border-r border-dark-700 p-0" />
               <th className="border-b border-r border-dark-700 px-3 py-2 text-left text-xs font-semibold text-gray-400 whitespace-nowrap min-w-[160px]">
-                Filename
+                {t('dataSheet.filename')}
               </th>
               {columns.map(col => (
                 <th
@@ -210,7 +212,7 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
                       value={newColName}
                       onChange={e => setNewColName(e.target.value)}
                       onBlur={() => { if (!newColName.trim()) setAddingCol(false); }}
-                      placeholder="field name"
+                      placeholder={t('dataSheet.fieldNamePlaceholder')}
                       className="w-24 bg-dark-700 border border-blue-500 rounded px-1.5 py-0.5 text-xs text-white outline-none"
                     />
                     <button type="submit" className="text-blue-400 hover:text-blue-300 text-xs">✓</button>
@@ -218,7 +220,7 @@ export function DataSheetView({ items, dirHandle, onMetadataUpdated, onImportCsv
                 ) : (
                   <button
                     onClick={() => setAddingCol(true)}
-                    title="Add column"
+                    title={t('dataSheet.addColumn')}
                     className="text-gray-600 hover:text-blue-400 transition-colors"
                   >
                     <Plus size={14} />

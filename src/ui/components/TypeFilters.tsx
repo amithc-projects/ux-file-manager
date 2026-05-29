@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { GridItem } from '../../core/models/FilePair';
 
 export type TypeFilter = 'images' | 'video' | 'audio' | 'documents' | 'other';
@@ -40,17 +41,25 @@ export function getTypeFilter(filename: string): TypeFilter {
   return 'other';
 }
 
-const LABELS: Record<TypeFilter, string> = {
-  images: 'Images',
-  video: 'Video',
-  audio: 'Audio',
-  documents: 'Docs',
-  other: 'Other',
+const LABEL_KEYS: Record<TypeFilter, string> = {
+  images: 'typeFilters.images',
+  video: 'typeFilters.video',
+  audio: 'typeFilters.audio',
+  documents: 'typeFilters.documents',
+  other: 'typeFilters.other',
 };
 
 const ALL_TYPES: TypeFilter[] = ['images', 'video', 'audio', 'documents', 'other'];
 
 export function TypeFilters({ items, active, onChange, allowedTypes }: TypeFiltersProps) {
+  const { t } = useTranslation();
+  const LABELS: Record<TypeFilter, string> = {
+    images: t(LABEL_KEYS.images),
+    video: t(LABEL_KEYS.video),
+    audio: t(LABEL_KEYS.audio),
+    documents: t(LABEL_KEYS.documents),
+    other: t(LABEL_KEYS.other),
+  };
   const counts: TypeFilterCounts = { images: 0, video: 0, audio: 0, documents: 0, other: 0 };
   for (const item of items) {
     if (item.type !== 'file') continue;
@@ -88,7 +97,7 @@ export function TypeFilters({ items, active, onChange, allowedTypes }: TypeFilte
               : 'bg-dark-700 text-gray-400 hover:text-white hover:bg-dark-600'
           }`}
         >
-          All
+          {t('typeFilters.all')}
           <span className={`text-[10px] ${active.size === 0 ? 'text-blue-200' : 'text-gray-500'}`}>{allCount}</span>
         </button>
       )}
@@ -112,7 +121,7 @@ export function TypeFilters({ items, active, onChange, allowedTypes }: TypeFilte
                   ? 'bg-dark-800 text-gray-600 hover:bg-dark-700'
                   : 'bg-dark-700 text-gray-400 hover:text-white hover:bg-dark-600'
             }`}
-            title={isEmpty ? `${LABELS[key]} — no matching files in this folder` : undefined}
+            title={isEmpty ? t('typeFilters.noMatching', { label: LABELS[key] }) : undefined}
           >
             {LABELS[key]}
             <span className={`text-[10px] ${isActive ? (isEmpty ? 'text-blue-300/70' : 'text-blue-200') : 'text-gray-500'}`}>{count}</span>

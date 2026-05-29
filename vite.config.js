@@ -13,7 +13,7 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-icon.svg'],
+            includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'pwa-icon.svg', 'pwa-192.png', 'pwa-512.png'],
             manifest: {
                 name: 'ZumiLabs File Browser',
                 short_name: 'File Browser',
@@ -23,10 +23,28 @@ export default defineConfig({
                 display: 'standalone',
                 icons: [
                     {
+                        src: 'pwa-192.png',
+                        sizes: '192x192',
+                        type: 'image/png',
+                        purpose: 'any'
+                    },
+                    {
+                        src: 'pwa-512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'any'
+                    },
+                    {
+                        src: 'pwa-512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'maskable'
+                    },
+                    {
                         src: 'pwa-icon.svg',
                         sizes: '192x192 512x512',
                         type: 'image/svg+xml',
-                        purpose: 'any maskable'
+                        purpose: 'any'
                     }
                 ]
             }
@@ -44,9 +62,24 @@ export default defineConfig({
             formats: ['iife'],
         },
         rollupOptions: {
+            // docMentis ships an 18 MB WASM binary. If bundled into the IIFE it gets
+            // base64-encoded, bloating the output to ~27 MB. Mark it (and officeparser)
+            // external so they stay as lazy dynamic imports. `output.paths` rewrites
+            // the bare specifiers to the vendored ESM files (served alongside the HTML
+            // in both the web app and the Chrome extension). This avoids an inline
+            // import map, which MV3's CSP forbids. In dev, Vite resolves the bare
+            // specifiers from node_modules instead.
+            external: ['@docmentis/udoc-viewer', 'officeparser'],
             output: {
                 inlineDynamicImports: true,
-            }
+                paths: {
+                    'officeparser': './vendor/officeparser.mjs',
+                    '@docmentis/udoc-viewer': './vendor/docmentis/index.js',
+                },
+                globals: {
+                    '@docmentis/udoc-viewer': 'DocMentis', // fallback for static-import shim
+                },
+            },
         }
     }
 });

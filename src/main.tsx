@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './apps/web/App';
 import tailwindCss from './index.css?inline';
+import { setLanguage } from './i18n';
 
 class ZumiLabsFileBrowser extends HTMLElement {
   private root: ReactDOM.Root | null = null;
@@ -10,10 +11,11 @@ class ZumiLabsFileBrowser extends HTMLElement {
 
   // ── Observed HTML attributes ───────────────────────────────────────────────
   static get observedAttributes() {
-    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing', 'hide-inspector', 'allowed-types', 'force-theme'];
+    return ['hidden-files-count', 'hidden-files-message', 'compare-mode', 'no-hash-routing', 'hide-inspector', 'allowed-types', 'force-theme', 'disable-office-viewer', 'lang'];
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(name: string, _old: string | null, value: string | null) {
+    if (name === 'lang') setLanguage(value);
     this._rerender();
   }
 
@@ -120,6 +122,7 @@ class ZumiLabsFileBrowser extends HTMLElement {
       : null;
     const forceThemeAttr = this.getAttribute('force-theme');
     const forceTheme = (forceThemeAttr === 'dark' || forceThemeAttr === 'light') ? forceThemeAttr : undefined;
+    const disableOfficeViewer = this.hasAttribute('disable-office-viewer');
 
     this.root.render(
       <React.StrictMode>
@@ -141,6 +144,7 @@ class ZumiLabsFileBrowser extends HTMLElement {
           allowedFiles={this._allowedFiles}
           allowedTypes={allowedTypes && allowedTypes.length ? allowedTypes : null}
           forceTheme={forceTheme}
+          disableOfficeViewer={disableOfficeViewer}
         />
       </React.StrictMode>
     );
@@ -149,6 +153,7 @@ class ZumiLabsFileBrowser extends HTMLElement {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   connectedCallback() {
+    setLanguage(this.getAttribute('lang'));
     const shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');

@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Columns, MoveHorizontal, FileText, Link, Link2Off } from 'lucide-react';
 import { ZoomableImage, ZoomState, DEFAULT_ZOOM } from './ZoomableImage';
 import { GridItem } from '../../core/models/FilePair';
@@ -13,6 +14,7 @@ interface CompareModalProps {
 }
 
 export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'side' | 'slider'>('side');
   const [sliderPos, setSliderPos] = useState(50);
   const [showDiffOnly, setShowDiffOnly] = useState(false);
@@ -41,8 +43,8 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
   const [textLeft, setTextLeft] = useState<string | null>(null);
   const [textRight, setTextRight] = useState<string | null>(null);
 
-  const nameLeft = itemLeft.type === 'file' ? itemLeft.pair.id : 'Folder';
-  const nameRight = itemRight.type === 'file' ? itemRight.pair.id : 'Folder';
+  const nameLeft = itemLeft.type === 'file' ? itemLeft.pair.id : t('compare.folder');
+  const nameRight = itemRight.type === 'file' ? itemRight.pair.id : t('compare.folder');
 
   const isImageFile = (name: string) => /\.(jpg|jpeg|png|gif|svg|webp|bmp)$/i.test(name);
   const isVideoFile = (name: string) => /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(name);
@@ -172,25 +174,25 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700 bg-dark-900 shrink-0 select-none">
         <div className="flex items-center gap-6">
-           <h2 className="font-semibold text-lg text-gray-100">Comparison Engine</h2>
-           
+           <h2 className="font-semibold text-lg text-gray-100">{t('compare.title')}</h2>
+
            <div className="flex bg-dark-950 p-1 rounded-lg border border-dark-700 shadow-inner">
-             <button title={isTextCompare ? "Unified Mode" : "Slider Mode"} onClick={() => setMode('slider')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'slider' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-               {isTextCompare ? <FileText size={14} /> : <MoveHorizontal size={14} />} 
-               {isTextCompare ? "Unified Diff" : "Slider Wipe"}
+             <button title={isTextCompare ? t('compare.unifiedMode') : t('compare.sliderMode')} onClick={() => setMode('slider')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'slider' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+               {isTextCompare ? <FileText size={14} /> : <MoveHorizontal size={14} />}
+               {isTextCompare ? t('compare.unifiedDiff') : t('compare.sliderWipe')}
              </button>
-             <button title="Side-by-Side Mode" onClick={() => setMode('side')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'side' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-               <Columns size={14} /> Side by Side
+             <button title={t('compare.sideBySideMode')} onClick={() => setMode('side')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'side' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+               <Columns size={14} /> {t('compare.sideBySide')}
              </button>
            </div>
 
            {isTextCompare && (
              <div className="flex bg-dark-950 p-1 rounded-lg border border-dark-700 shadow-inner">
-               <button title="Show All Lines" onClick={() => setShowDiffOnly(false)} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!showDiffOnly ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-                 All
+               <button title={t('compare.showAllLines')} onClick={() => setShowDiffOnly(false)} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!showDiffOnly ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+                 {t('compare.all')}
                </button>
-               <button title="Show Changes Only" onClick={() => setShowDiffOnly(true)} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showDiffOnly ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-                 Changes Only
+               <button title={t('compare.showChangesOnly')} onClick={() => setShowDiffOnly(true)} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showDiffOnly ? 'bg-indigo-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+                 {t('compare.changesOnly')}
                </button>
              </div>
            )}
@@ -198,22 +200,22 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
            {isVideoCompare && (
              <button
                onClick={() => setSyncVideos(s => !s)}
-               title={syncVideos ? 'Unsync controls' : 'Sync controls'}
+               title={syncVideos ? t('compare.unsyncControls') : t('compare.syncControls')}
                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${syncVideos ? 'bg-blue-600 border-blue-500 text-white' : 'border-dark-600 text-gray-400 hover:text-white hover:border-dark-500'}`}
              >
                {syncVideos ? <Link size={14} /> : <Link2Off size={14} />}
-               {syncVideos ? 'Synced' : 'Independent'}
+               {syncVideos ? t('compare.synced') : t('compare.independent')}
              </button>
            )}
 
            {isImageCompare && (
              <button
                onClick={() => setSyncZoom(s => !s)}
-               title={syncZoom ? 'Unsync zoom' : 'Sync zoom'}
+               title={syncZoom ? t('compare.unsyncZoom') : t('compare.syncZoom')}
                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${syncZoom ? 'bg-blue-600 border-blue-500 text-white' : 'border-dark-600 text-gray-400 hover:text-white hover:border-dark-500'}`}
              >
                {syncZoom ? <Link size={14} /> : <Link2Off size={14} />}
-               {syncZoom ? 'Zoom synced' : 'Zoom independent'}
+               {syncZoom ? t('compare.zoomSynced') : t('compare.zoomIndependent')}
              </button>
            )}
         </div>
@@ -237,7 +239,7 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
                   <div className="flex-1 flex items-center justify-center min-h-0">
                     {url
                       ? <video ref={ref} src={url} controls className="max-w-full max-h-full rounded-lg shadow-2xl" />
-                      : <div className="text-gray-500 text-sm">Loading…</div>
+                      : <div className="text-gray-500 text-sm">{t('compare.loading')}</div>
                     }
                   </div>
                 </div>
@@ -245,7 +247,7 @@ export function CompareModal({ itemLeft, itemRight, onClose }: CompareModalProps
             </div>
          ) : isTextCompare ? (
             <div ref={containerRef} className="w-full h-full overflow-auto bg-[#1e1e1e] p-2 text-sm">
-                <Suspense fallback={<div className="text-gray-400 p-8 flex items-center gap-3 justify-center h-full"><div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" /> Loading text diff viewer...</div>}>
+                <Suspense fallback={<div className="text-gray-400 p-8 flex items-center gap-3 justify-center h-full"><div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" /> {t('compare.loadingDiff')}</div>}>
                     {textLeft !== null && textRight !== null && (
                         <ReactDiffViewer
                            oldValue={textLeft}

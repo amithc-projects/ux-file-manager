@@ -7,6 +7,7 @@ interface PreviewModalProps {
   item: GridItem;
   forceText?: boolean;
   markdownContent?: string;
+  disableOfficeViewer?: boolean;
   onClose: () => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
   hasPrev?: boolean;
@@ -15,7 +16,7 @@ interface PreviewModalProps {
   onOpenSettings?: () => void;
 }
 
-export function PreviewModal({ item, forceText, markdownContent, onClose, onNavigate, hasPrev, hasNext, onSaveNewFile, onOpenSettings }: PreviewModalProps) {
+export function PreviewModal({ item, forceText, markdownContent, disableOfficeViewer, onClose, onNavigate, hasPrev, hasNext, onSaveNewFile, onOpenSettings }: PreviewModalProps) {
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -61,7 +62,7 @@ export function PreviewModal({ item, forceText, markdownContent, onClose, onNavi
       </div>
 
       <div className="relative w-full max-w-6xl h-[85vh] flex items-center justify-center bg-dark-900 border border-dark-700 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden">
-          <FileViewer item={item} forceText={forceText} markdownContent={markdownContent} onSaveNewFile={onSaveNewFile} onOpenSettings={onOpenSettings} />
+          <FileViewer item={item} forceText={forceText} markdownContent={markdownContent} disableOfficeViewer={disableOfficeViewer} onSaveNewFile={onSaveNewFile} onOpenSettings={onOpenSettings} />
       </div>
 
     </div>

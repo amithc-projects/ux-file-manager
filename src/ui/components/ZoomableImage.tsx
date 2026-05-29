@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ZoomState {
   scale: number;
@@ -18,6 +19,7 @@ interface ZoomableImageProps {
 }
 
 export function ZoomableImage({ src, alt, zoomState, onZoomChange, className }: ZoomableImageProps) {
+  const { t } = useTranslation();
   const [localZoom, setLocalZoom] = useState<ZoomState>(DEFAULT_ZOOM);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; startTx: number; startTy: number } | null>(null);
@@ -107,7 +109,7 @@ export function ZoomableImage({ src, alt, zoomState, onZoomChange, className }: 
       />
       {zoom.scale !== 1 && (
         <div className="absolute bottom-2 left-2 text-[10px] font-mono bg-black/60 text-white px-2 py-0.5 rounded pointer-events-none">
-          {Math.round(zoom.scale * 100)}% · dbl-click to reset
+          {t('zoomableImage.resetHint', { percent: Math.round(zoom.scale * 100) })}
         </div>
       )}
     </div>

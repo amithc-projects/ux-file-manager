@@ -9,6 +9,7 @@
  * DocMentisViewer once accepted.
  */
 import { Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DocMentisConsentModal } from './DocMentisConsentModal';
 import { DocMentisViewer } from './DocMentisViewer';
 import { useDocMentisSettings } from './useDocMentisSettings';
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function OfficeViewer({ file, ext, onOpenSettings }: Props) {
+  const { t } = useTranslation();
   const { settings, setConsent } = useDocMentisSettings();
 
   const formatEnabled =
@@ -34,8 +36,8 @@ export function OfficeViewer({ file, ext, onOpenSettings }: Props) {
   if (!formatEnabled) {
     return (
       <Blocked
-        title={`${formatLabel} preview is disabled`}
-        message={`You can enable it in Settings → Office Preview.`}
+        title={t('office.previewDisabled', { format: formatLabel })}
+        message={t('office.enableInSettings')}
         onOpenSettings={onOpenSettings}
       />
     );
@@ -50,8 +52,8 @@ export function OfficeViewer({ file, ext, onOpenSettings }: Props) {
   if (settings.consent === 'declined') {
     return (
       <Blocked
-        title="Office preview unavailable"
-        message="You chose not to allow the docMentis telemetry required for previewing DOCX, PPTX, and XLSX files. You can change this in Settings → Office Preview."
+        title={t('office.unavailable')}
+        message={t('office.declinedMessage')}
         onOpenSettings={onOpenSettings}
       />
     );
@@ -72,6 +74,7 @@ function Blocked({ title, message, onOpenSettings }: {
   message: string;
   onOpenSettings?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8 opacity-70">
       <div className="w-14 h-14 rounded-2xl bg-dark-700 border border-dark-600 flex items-center justify-center">
@@ -86,7 +89,7 @@ function Blocked({ title, message, onOpenSettings }: {
           onClick={onOpenSettings}
           className="px-4 py-2 text-sm text-blue-400 hover:text-white border border-blue-500/40 hover:bg-blue-600 rounded-xl transition-colors"
         >
-          Open Settings
+          {t('office.openSettings')}
         </button>
       )}
     </div>

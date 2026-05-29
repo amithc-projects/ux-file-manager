@@ -11,6 +11,7 @@
  */
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
 import { Folder, Film, FileIcon, Image as ImageIcon, Check, Music, Play, Braces, FileText, FileCode, Archive, Hash } from 'lucide-react';
@@ -148,6 +149,7 @@ function StripThumb({
   onDoubleClick: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }) {
+  const { t } = useTranslation();
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
   const itemName = isFile ? pair!.id : item.name;
@@ -158,8 +160,8 @@ function StripThumb({
   // Tooltip text
   const tooltipLines: string[] = [itemName];
   if (isFile && pair) {
-    if (pair.size) tooltipLines.push(`Size: ${formatBytes(pair.size)}`);
-    if (pair.lastModified) tooltipLines.push(`Modified: ${new Date(pair.lastModified).toLocaleString()}`);
+    if (pair.size) tooltipLines.push(t('filmstrip.size', { size: formatBytes(pair.size) }));
+    if (pair.lastModified) tooltipLines.push(t('filmstrip.modified', { date: new Date(pair.lastModified).toLocaleString() }));
   }
   const tooltipText = tooltipLines.join('\n');
 

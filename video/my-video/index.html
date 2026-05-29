@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: 'Bricolage Grotesque';
+      src: url('capture/assets/fonts/BricolageGrotesque.woff2') format('woff2');
+      font-weight: 100 900; font-style: normal;
+    }
+    @font-face {
+      font-family: 'Space Grotesk';
+      src: url('capture/assets/fonts/SpaceGrotesk.woff2') format('woff2');
+      font-weight: 300 700; font-style: normal;
+    }
+    @font-face {
+      font-family: 'Space Mono';
+      src: url('capture/assets/fonts/SpaceMono.woff2') format('woff2');
+      font-weight: 400 700; font-style: normal;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+
+    #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+
+    /* All scenes: full-frame, transparent, stacked */
+    .scene { position: absolute; inset: 0; overflow: hidden; background: transparent; }
+
+    /* Deep shadows make text legible on ANY background */
+    .ts  { text-shadow: 0 2px 6px #000, 0 4px 28px rgba(0,0,0,.95), 0 12px 70px rgba(0,0,0,.8); }
+    .ts-b { text-shadow: 0 0 60px rgba(74,124,255,.8), 0 2px 6px #000, 0 6px 30px rgba(0,0,0,.95); }
+    .ts-c { text-shadow: 0 0 70px rgba(0,212,255,.8), 0 2px 6px #000, 0 6px 30px rgba(0,0,0,.95); }
+    .ts-v { text-shadow: 0 0 70px rgba(168,85,247,.8), 0 2px 6px #000, 0 6px 30px rgba(0,0,0,.95); }
+
+    .ch { display: inline-block; }
+
+    /* ── S1: TITLE ──────────────────────────────────────────────────────── */
+    #s1 { z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    #s1-brand {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 280px; letter-spacing: -.07em; line-height: .85;
+      color: #fff; text-shadow: 0 2px 8px #000, 0 6px 50px rgba(0,0,0,.95), 0 20px 100px rgba(0,0,0,.8);
+    }
+    #s1-rule {
+      width: 760px; height: 4px; margin: 28px 0;
+      background: linear-gradient(90deg,#4a7cff,#00d4ff);
+      box-shadow: 0 0 40px rgba(74,124,255,.9), 0 0 80px rgba(74,124,255,.4);
+      transform-origin: left center;
+    }
+    #s1-product {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+      font-size: 76px; letter-spacing: .24em; text-transform: uppercase;
+      color: #4a7cff; text-shadow: 0 0 50px rgba(74,124,255,.9), 0 2px 6px #000, 0 6px 30px rgba(0,0,0,.95);
+    }
+    /* ghost layer — oversized, bleeds off-frame */
+    #s1-ghost {
+      position: absolute; left: -60px; top: 100px;
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 520px; letter-spacing: -.08em; line-height: 1;
+      color: rgba(74,124,255,.04); white-space: nowrap; pointer-events: none;
+      user-select: none;
+    }
+
+    /* ── S2: TAGLINE — three staggered anchored lines ───────────────────── */
+    #s2 { z-index: 2; opacity: 0; }
+    .s2-line {
+      position: absolute;
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 150px; letter-spacing: -.05em; line-height: 1;
+    }
+    #s2-l1 { left: 160px; top: 160px; color: #fff;
+      text-shadow: 0 2px 8px #000, 0 6px 40px rgba(0,0,0,.95); }
+    #s2-l2 { right: 160px; top: 400px; text-align: right; color: #fff;
+      text-shadow: 0 2px 8px #000, 0 6px 40px rgba(0,0,0,.95); }
+    #s2-l3 { left: 0; right: 0; bottom: 160px; text-align: center; color: #00d4ff;
+      text-shadow: 0 0 80px rgba(0,212,255,.7), 0 2px 6px #000, 0 6px 30px rgba(0,0,0,.95); }
+    #s2-rule {
+      position: absolute; left: 160px; bottom: 155px;
+      width: 0; height: 3px; background: rgba(0,212,255,.6);
+      box-shadow: 0 0 20px rgba(0,212,255,.5);
+    }
+
+    /* ── S3: DROP & BROWSE — vertical punch ────────────────────────────── */
+    #s3 { z-index: 3; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #s3-drop {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 360px; letter-spacing: -.09em; line-height: .75;
+      color: #fff; text-shadow: 0 4px 12px #000, 0 10px 70px rgba(0,0,0,.95);
+    }
+    #s3-amp {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 300;
+      font-size: 72px; letter-spacing: .08em; color: rgba(255,255,255,.4);
+      text-shadow: 0 2px 10px rgba(0,0,0,.9); margin: -16px 0;
+    }
+    #s3-browse {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 360px; letter-spacing: -.09em; line-height: .75;
+      color: #4a7cff; text-shadow: 0 0 100px rgba(74,124,255,.5), 0 4px 12px #000, 0 10px 70px rgba(0,0,0,.95);
+    }
+    #s3-sub {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 500;
+      font-size: 28px; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,255,255,.6); margin-top: 48px;
+      text-shadow: 0 2px 8px rgba(0,0,0,.9);
+    }
+
+    /* ── S4: SMART FILTERS — char wipe + scatter pills ──────────────────── */
+    #s4 { z-index: 4; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #s4-title-wrap { overflow: hidden; }
+    #s4-title {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 220px; letter-spacing: -.06em; line-height: .85;
+      color: #fff; text-shadow: 0 4px 10px #000, 0 8px 60px rgba(0,0,0,.95);
+    }
+    #s4-pills { display: flex; gap: 28px; margin-top: 56px; }
+    .pill {
+      padding: 20px 48px; border-radius: 999px;
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-size: 34px; letter-spacing: .04em; border: 2px solid;
+    }
+    .p-img { background: rgba(74,124,255,.18); border-color: #4a7cff; color: #a8c8ff;
+      box-shadow: 0 0 50px rgba(74,124,255,.3), 0 4px 20px rgba(0,0,0,.7); }
+    .p-vid { background: rgba(168,85,247,.18); border-color: #a855f7; color: #d8aaff;
+      box-shadow: 0 0 50px rgba(168,85,247,.3), 0 4px 20px rgba(0,0,0,.7); }
+    .p-aud { background: rgba(0,212,255,.12); border-color: #00d4ff; color: #80eeff;
+      box-shadow: 0 0 50px rgba(0,212,255,.25), 0 4px 20px rgba(0,0,0,.7); }
+    .p-doc { background: rgba(251,191,36,.12); border-color: #fbbf24; color: #fde68a;
+      box-shadow: 0 0 50px rgba(251,191,36,.2), 0 4px 20px rgba(0,0,0,.7); }
+    #s4-sub {
+      font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 400;
+      color: rgba(255,255,255,.5); letter-spacing: .06em; margin-top: 28px;
+      text-shadow: 0 2px 8px rgba(0,0,0,.9);
+    }
+
+    /* ── S5: METADATA & TAGS — split-frame ──────────────────────────────── */
+    #s5 { z-index: 5; opacity: 0; display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 80px; padding: 0 160px 120px; }
+    #s5-meta {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
+      font-size: 96px; letter-spacing: -.04em;
+      color: rgba(255,255,255,.45); text-shadow: 0 2px 8px rgba(0,0,0,.95);
+    }
+    #s5-tags {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 280px; letter-spacing: -.07em; line-height: .8;
+      color: #a855f7; text-shadow: 0 0 120px rgba(168,85,247,.55), 0 4px 14px #000, 0 8px 70px rgba(0,0,0,.95);
+    }
+    #s5-rule { position: absolute; left: 960px; top: 60px; bottom: 60px; width: 2px; background: rgba(255,255,255,.1); }
+    #s5-props { display: flex; flex-direction: column; gap: 20px; }
+    .p-row { display: flex; align-items: baseline; gap: 24px; }
+    .p-key {
+      font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600;
+      color: rgba(255,255,255,.38); letter-spacing: .1em; text-transform: uppercase;
+      text-shadow: 0 1px 6px rgba(0,0,0,.9); min-width: 100px;
+    }
+    .p-val {
+      font-family: 'Space Mono', monospace; font-size: 22px;
+      color: #b0d0ff; text-shadow: 0 1px 8px rgba(0,0,0,.9);
+    }
+
+    /* ── S6: COLLECTIONS ────────────────────────────────────────────────── */
+    #s6 { z-index: 6; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #s6-title {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 240px; letter-spacing: -.07em; line-height: .85;
+      color: #fff; text-shadow: 0 4px 10px #000, 0 8px 70px rgba(0,0,0,.95);
+    }
+    #s6-cards { display: flex; gap: 40px; margin-top: 64px; }
+    .c-card {
+      width: 480px; padding: 40px 48px; border-radius: 28px;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    .cc1 { background: rgba(74,124,255,.13); box-shadow: 0 0 60px rgba(74,124,255,.15), 0 12px 50px rgba(0,0,0,.7); }
+    .cc2 { background: rgba(168,85,247,.13); box-shadow: 0 0 60px rgba(168,85,247,.15), 0 12px 50px rgba(0,0,0,.7); }
+    .cc3 { background: rgba(0,212,255,.08);  box-shadow: 0 0 60px rgba(0,212,255,.1),  0 12px 50px rgba(0,0,0,.7); }
+    .c-name { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:32px; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.8); }
+    .c-cnt  { font-family:'Space Grotesk',sans-serif; font-size:20px; color:rgba(255,255,255,.42); margin-top:12px; text-shadow:0 1px 6px rgba(0,0,0,.8); }
+
+    /* ── S7: SEND TO CLOUD ──────────────────────────────────────────────── */
+    #s7 { z-index: 7; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #s7-icon { font-size: 130px; line-height: 1; filter: drop-shadow(0 0 50px rgba(74,124,255,.85)) drop-shadow(0 4px 20px rgba(0,0,0,.95)); }
+    #s7-title {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 180px; letter-spacing: -.06em; line-height: .85;
+      color: #fff; margin-top: 16px; text-shadow: 0 4px 10px #000, 0 8px 70px rgba(0,0,0,.95);
+    }
+    #s7-sub {
+      font-family: 'Space Grotesk', sans-serif; font-size: 46px; font-weight: 600;
+      color: #4a7cff; letter-spacing: .02em; margin-top: 24px;
+      text-shadow: 0 0 50px rgba(74,124,255,.8), 0 2px 8px rgba(0,0,0,.95);
+    }
+    #s7-ep {
+      font-family: 'Space Mono', monospace; font-size: 22px;
+      color: rgba(255,255,255,.32); margin-top: 18px; text-shadow: 0 1px 6px rgba(0,0,0,.9);
+    }
+
+    /* ── S8: 100% PRIVATE ──────────────────────────────────────────────── */
+    #s8 { z-index: 8; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #s8-num {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 480px; letter-spacing: -.1em; line-height: .75;
+      color: #fff; text-shadow: 0 4px 20px #000, 0 16px 120px rgba(0,0,0,.95);
+    }
+    #s8-label {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 190px; letter-spacing: -.05em; line-height: .85;
+      color: #00d4ff; text-shadow: 0 0 120px rgba(0,212,255,.65), 0 4px 12px #000, 0 8px 60px rgba(0,0,0,.95);
+    }
+    #s8-sub {
+      font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 500;
+      color: rgba(255,255,255,.52); letter-spacing: .08em; margin-top: 32px;
+      text-shadow: 0 2px 8px rgba(0,0,0,.9);
+    }
+
+    /* ── S9: CTA ────────────────────────────────────────────────────────── */
+    #s9 { z-index: 9; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #s9-try {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 280px; letter-spacing: -.07em; line-height: .85;
+      color: #fff; text-shadow: 0 4px 20px #000, 0 12px 90px rgba(0,0,0,.95);
+    }
+    #s9-today {
+      font-family: 'Bricolage Grotesque', sans-serif; font-weight: 900;
+      font-size: 280px; letter-spacing: -.07em; line-height: .85;
+      color: #4a7cff; text-shadow: 0 0 120px rgba(74,124,255,.55), 0 4px 20px #000, 0 12px 90px rgba(0,0,0,.95);
+    }
+    #s9-url {
+      font-family: 'Space Mono', monospace; font-size: 52px; font-weight: 700;
+      color: rgba(255,255,255,.85); letter-spacing: .04em; margin-top: 44px;
+      text-shadow: 0 2px 10px #000, 0 4px 36px rgba(0,0,0,.9);
+    }
+    #s9-tagline {
+      font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 500;
+      color: rgba(255,255,255,.42); letter-spacing: .1em; margin-top: 20px;
+      text-shadow: 0 1px 6px rgba(0,0,0,.9);
+    }
+  </style>
+</head>
+<body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="63">
+
+    <!-- S1: TITLE — scale-blur SLAM + rule draw + tracking slide -->
+    <div id="s1" class="scene">
+      <div id="s1-ghost" aria-hidden="true" data-layout-ignore>ZUMILABS</div>
+      <div id="s1-brand">ZUMILABS</div>
+      <div id="s1-rule"></div>
+      <div id="s1-product">FILE BROWSER</div>
+    </div>
+
+    <!-- S2: TAGLINE — three anchored lines slide up from slit -->
+    <div id="s2" class="scene">
+      <div id="s2-l1" class="s2-line">Your files.</div>
+      <div id="s2-l2" class="s2-line">Your browser.</div>
+      <div id="s2-l3" class="s2-line">Zero install.</div>
+      <div id="s2-rule"></div>
+    </div>
+
+    <!-- S3: DROP + BROWSE — vertical punch from opposite extremes -->
+    <div id="s3" class="scene">
+      <div id="s3-drop">DROP</div>
+      <div id="s3-amp">+</div>
+      <div id="s3-browse">BROWSE</div>
+      <div id="s3-sub">Drag files straight from your desktop</div>
+    </div>
+
+    <!-- S4: SMART FILTERS — char wipe, pills scatter from 4 directions -->
+    <div id="s4" class="scene">
+      <div id="s4-title-wrap" data-layout-allow-overflow><div id="s4-title">SMART FILTERS</div></div>
+      <div id="s4-pills">
+        <div class="pill p-img">Images</div>
+        <div class="pill p-vid">Video</div>
+        <div class="pill p-aud">Audio</div>
+        <div class="pill p-doc">Docs</div>
+      </div>
+      <div id="s4-sub">Sort · Group · Search — all in real time</div>
+    </div>
+
+    <!-- S5: METADATA & TAGS — split-frame, props tick in from right -->
+    <div id="s5" class="scene">
+      <div style="display:flex;flex-direction:column;align-items:flex-start;">
+        <div id="s5-meta">METADATA &amp;</div>
+        <div id="s5-tags">TAGS</div>
+      </div>
+      <div id="s5-rule" data-layout-ignore></div>
+      <div id="s5-props">
+        <div class="p-row"><span class="p-key">Kind</span><span class="p-val">JPEG Image</span></div>
+        <div class="p-row"><span class="p-key">Size</span><span class="p-val">4.2 MB</span></div>
+        <div class="p-row"><span class="p-key">Modified</span><span class="p-val">2025-03-14</span></div>
+        <div class="p-row"><span class="p-key">Rating</span><span class="p-val">★★★★☆</span></div>
+        <div class="p-row"><span class="p-key">Tags</span><span class="p-val">travel, 2025</span></div>
+        <div class="p-row"><span class="p-key">Status</span><span class="p-val">Approved</span></div>
+      </div>
+    </div>
+
+    <!-- S6: COLLECTIONS — title scale-blur, cards fly in at angles -->
+    <div id="s6" class="scene">
+      <div id="s6-title">COLLECTIONS</div>
+      <div id="s6-cards" data-layout-allow-overflow>
+        <div class="c-card cc1"><div class="c-name">Summer 2025</div><div class="c-cnt">142 files</div></div>
+        <div class="c-card cc2"><div class="c-name">Design Assets</div><div class="c-cnt">89 files</div></div>
+        <div class="c-card cc3"><div class="c-name">Client Videos</div><div class="c-cnt">23 files</div></div>
+      </div>
+    </div>
+
+    <!-- S7: SEND TO CLOUD — icon expands, title rises, sub fades -->
+    <div id="s7" class="scene">
+      <div id="s7-icon">☁️</div>
+      <div id="s7-title">SEND TO CLOUD</div>
+      <div id="s7-sub">One click. Any endpoint.</div>
+      <div id="s7-ep">https://your-api.example.com/upload</div>
+    </div>
+
+    <!-- S8: 100% PRIVATE — number SLAMS, chars scatter-assemble -->
+    <div id="s8" class="scene">
+      <div id="s8-num">100%</div>
+      <div id="s8-label">PRIVATE</div>
+      <div id="s8-sub">No server · No account · No tracking</div>
+    </div>
+
+    <!-- S9: CTA — bi-directional slam + URL char-type + final fade -->
+    <div id="s9" class="scene">
+      <div id="s9-try">TRY IT</div>
+      <div id="s9-today">TODAY</div>
+      <div id="s9-url">zumilabs.com</div>
+      <div id="s9-tagline">Fast · Private · Built for the web</div>
+    </div>
+
+  </div>
+
+  <script>
+  (function() {
+    /* Seeded PRNG (mulberry32) — deterministic scatter positions */
+    function mulberry32(a) {
+      return function() {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        var t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    var rng = mulberry32(0xBEEFCAFE);
+
+    /* Split text into char spans — spaces in DOM but excluded from animation array */
+    function splitChars(el) {
+      var txt = el.textContent;
+      el.textContent = '';
+      var spans = [];
+      txt.split('').forEach(function(c) {
+        var s = document.createElement('span');
+        s.className = 'ch';
+        s.textContent = c;
+        el.appendChild(s);
+        if (c !== ' ') spans.push(s);
+      });
+      return spans;
+    }
+
+    var s4Chars  = splitChars(document.getElementById('s4-title'));
+    var s8Chars  = splitChars(document.getElementById('s8-label'));
+    var s9Chars  = splitChars(document.getElementById('s9-url'));
+
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+
+    /*
+     * Velocity-matched blur+y transition between scenes.
+     * Exit: power3.in (accelerates away upward)
+     * Enter: power3.out (decelerates into position from below)
+     * The peak velocities at the cut point are matched.
+     */
+    function tx(fromId, toId, T) {
+      tl.to(fromId,  { y: -150, filter: 'blur(14px)', opacity: 0, duration: .36, ease: 'power3.in' }, T);
+      tl.fromTo(toId,
+        { y: 150, filter: 'blur(14px)', opacity: 0 },
+        { y: 0,   filter: 'blur(0px)', opacity: 1, duration: .42, ease: 'power3.out' },
+        T + .08
+      );
+    }
+
+    /* ═══ S1: TITLE (0 → 6.2) ════════════════════════════════════════════ */
+    tl.from('#s1-brand',   { scale: 1.8, filter: 'blur(40px)', opacity: 0, duration: .75, ease: 'power4.out' }, .2);
+    tl.from('#s1-rule',    { scaleX: 0, duration: .55, ease: 'power3.out', transformOrigin: 'left' }, .92);
+    tl.from('#s1-product', { x: 340, filter: 'blur(8px)', opacity: 0, duration: .6, ease: 'expo.out' }, 1.05);
+    tl.from('#s1-ghost',   { x: -120, opacity: 0, duration: 1.4, ease: 'power1.out' }, .15);
+
+    tx('#s1', '#s2', 6.0);
+
+    /* ═══ S2: TAGLINE (6.5 → 12.5) — each word slides up from anchor ════ */
+    var t2 = 6.5;
+    tl.from('#s2-l1', { y: 130, opacity: 0, duration: .55, ease: 'power3.out' }, t2 + .1);
+    tl.from('#s2-l2', { y: 130, opacity: 0, duration: .55, ease: 'expo.out'   }, t2 + .42);
+    tl.from('#s2-l3', { y: 130, scale: 1.25, opacity: 0, duration: .65, ease: 'back.out(1.7)' }, t2 + .74);
+    tl.from('#s2-rule', { width: 0, duration: .5, ease: 'power2.out' }, t2 + 1.05);
+
+    tx('#s2', '#s3', 12.2);
+
+    /* ═══ S3: DROP & BROWSE (12.7 → 18.7) — vertical punch ══════════════ */
+    var t3 = 12.7;
+    tl.from('#s3-drop',   { y: -400, opacity: 0, duration: .55, ease: 'back.out(1.15)' }, t3);
+    tl.from('#s3-amp',    { scale: 3.5, opacity: 0, duration: .4,  ease: 'power2.out'  }, t3 + .44);
+    tl.from('#s3-browse', { y:  400, opacity: 0, duration: .55, ease: 'back.out(1.15)' }, t3 + .58);
+    tl.from('#s3-sub',    { y: 28, opacity: 0, duration: .45, ease: 'power2.out'       }, t3 + 1.0);
+
+    tx('#s3', '#s4', 18.4);
+
+    /* ═══ S4: SMART FILTERS (18.9 → 24.9) — char wipe + scatter pills ═══ */
+    var t4 = 18.9;
+    /* chars rise through overflow:hidden slit */
+    tl.from(s4Chars, { y: 260, opacity: 0, stagger: .028, duration: .48, ease: 'power3.out' }, t4);
+    /* each pill scatters in from a different direction */
+    tl.from('.p-img', { x: -260, rotation: -14, opacity: 0, duration: .45, ease: 'back.out(2.2)' }, t4 + .9);
+    tl.from('.p-vid', { y: 200, rotation:  12, opacity: 0, duration: .45, ease: 'back.out(2.2)' }, t4 + 1.02);
+    tl.from('.p-aud', { y:-200, rotation:  -9, opacity: 0, duration: .45, ease: 'back.out(2.2)' }, t4 + 1.14);
+    tl.from('.p-doc', { x:  260, rotation:  14, opacity: 0, duration: .45, ease: 'back.out(2.2)' }, t4 + 1.26);
+    tl.from('#s4-sub', { opacity: 0, y: 24, duration: .4, ease: 'power2.out' }, t4 + 1.8);
+
+    tx('#s4', '#s5', 24.6);
+
+    /* ═══ S5: METADATA & TAGS (25.1 → 31.1) — split-frame ═══════════════ */
+    var t5 = 25.1;
+    tl.from('#s5-meta', { x: -180, filter: 'blur(12px)', opacity: 0, duration: .58, ease: 'expo.out' }, t5);
+    tl.from('#s5-tags', { x: -180, scale: .72, opacity: 0, duration: .68, ease: 'back.out(1.5)' }, t5 + .26);
+    tl.from('#s5-rule', { scaleY: 0, duration: .5, ease: 'power2.out', transformOrigin: 'top' }, t5 + .2);
+    tl.from('.p-row',   { x: 90, opacity: 0, stagger: .1, duration: .4, ease: 'power2.out' }, t5 + .7);
+
+    tx('#s5', '#s6', 30.8);
+
+    /* ═══ S6: COLLECTIONS (31.3 → 37.8) — scale-blur + angled cards ════ */
+    var t6 = 31.3;
+    tl.from('#s6-title', { scale: .65, filter: 'blur(24px)', opacity: 0, duration: .62, ease: 'power4.out' }, t6);
+    tl.from('.cc1', { x: -340, rotation: -9, opacity: 0, duration: .5, ease: 'power3.out' }, t6 + .72);
+    tl.from('.cc2', { y:  220, rotation:  5, opacity: 0, duration: .5, ease: 'back.out(1.6)' }, t6 + .86);
+    tl.from('.cc3', { x:  340, rotation:  9, opacity: 0, duration: .5, ease: 'power3.out' }, t6 + 1.0);
+
+    tx('#s6', '#s7', 37.5);
+
+    /* ═══ S7: SEND TO CLOUD (38.0 → 44.0) — icon + cascade ═════════════ */
+    var t7 = 38.0;
+    tl.from('#s7-icon',  { scale: .05, opacity: 0, duration: .5, ease: 'back.out(2.2)' }, t7);
+    tl.from('#s7-title', { y: 90, filter: 'blur(10px)', opacity: 0, duration: .55, ease: 'power3.out' }, t7 + .4);
+    tl.from('#s7-sub',   { opacity: 0, y: 32, duration: .45, ease: 'power2.out' }, t7 + .85);
+    tl.from('#s7-ep',    { opacity: 0, y: 20, duration: .4, ease: 'power1.out'  }, t7 + 1.25);
+
+    tx('#s7', '#s8', 43.7);
+
+    /* ═══ S8: 100% PRIVATE (44.2 → 52.0) — slam + char scatter-assemble ═ */
+    var t8 = 44.2;
+    tl.from('#s8-num', { scale: 2.4, filter: 'blur(35px)', opacity: 0, duration: .68, ease: 'power4.out' }, t8);
+    /* Each char of PRIVATE assembles from a scattered random position */
+    s8Chars.forEach(function(ch, i) {
+      var ox = (rng() - .5) * 700;
+      var oy = (rng() - .5) * 500;
+      var ro = (rng() - .5) * 50;
+      tl.from(ch, { x: ox, y: oy, rotation: ro, opacity: 0, duration: .5, ease: 'expo.out' }, t8 + .55 + i * .045);
+    });
+    tl.from('#s8-sub', { opacity: 0, y: 26, duration: .5, ease: 'power2.out' }, t8 + 1.5);
+
+    tx('#s8', '#s9', 51.7);
+
+    /* ═══ S9: CTA (52.2 → 63) — bi-directional + char-type + fade ══════ */
+    var t9 = 52.2;
+    tl.from('#s9-try',     { x: -340, opacity: 0, duration: .55, ease: 'expo.out' }, t9);
+    tl.from('#s9-today',   { x:  340, opacity: 0, duration: .55, ease: 'expo.out' }, t9 + .15);
+    tl.from(s9Chars, { opacity: 0, y: -22, stagger: .045, duration: .3, ease: 'power2.out' }, t9 + .72);
+    tl.from('#s9-tagline', { opacity: 0, duration: .7, ease: 'power1.out' }, t9 + 1.55);
+    /* Final fade — last scene only */
+    tl.to('#s9', { opacity: 0, duration: 1.2, ease: 'power1.in' }, 61.5);
+
+    window.__timelines['main'] = tl;
+  })();
+  </script>
+</body>
+</html>

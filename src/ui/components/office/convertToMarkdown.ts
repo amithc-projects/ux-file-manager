@@ -22,7 +22,11 @@ export function isOfficeFile(filename: string): boolean {
  */
 export async function convertToMarkdown(file: File): Promise<string> {
   // Dynamic import keeps officeparser out of the IIFE bundle — loads on demand.
-  const { OfficeConverter } = await import(/* @vite-ignore */ 'officeparser');
+  // In dev, Vite resolves this bare specifier from node_modules. In the IIFE
+  // build it's marked external and rewritten to the vendored ESM via Rollup's
+  // output.paths (→ ./vendor/officeparser.mjs), so no import map is needed —
+  // which keeps it compatible with the Chrome extension's MV3 CSP.
+  const { OfficeConverter } = await import('officeparser');
 
   const arrayBuffer = await file.arrayBuffer();
 

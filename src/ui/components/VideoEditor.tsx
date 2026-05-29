@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Scissors, Save, X, Play, Pause, Loader2, SplitSquareHorizontal, Layers } from 'lucide-react';
 
 interface VideoEditorProps {
@@ -14,6 +15,7 @@ interface Clip {
 }
 
 export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorProps) {
+    const { t } = useTranslation();
     const [url, setUrl] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -288,7 +290,7 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
             {!isEditing && (
                 <div className="absolute top-6 right-6 bg-dark-800/90 backdrop-blur-md border border-dark-600 shadow-2xl rounded-xl p-1.5 flex items-center gap-1.5 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button onClick={() => setIsEditing(true)} className="p-2 bg-dark-700/50 hover:bg-dark-600 text-blue-400 hover:text-blue-300 rounded transition-colors flex items-center gap-2 text-sm font-bold">
-                        <Scissors size={18} /> Edit & Trim
+                        <Scissors size={18} /> {t('videoEditor.editTrim')}
                     </button>
                 </div>
             )}
@@ -312,21 +314,21 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
 
                            {/* Action Toolset */}
                            <div className="flex-1 flex items-center gap-2 px-4 py-2 bg-dark-950 rounded-xl border border-dark-700 mx-2 overflow-x-auto no-scrollbar">
-                               <button onClick={handleSplit} title="Split at playhead" className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">
-                                   <SplitSquareHorizontal size={14} className="text-blue-400"/> Split
+                               <button onClick={handleSplit} title={t('videoEditor.splitAtPlayhead')} className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">
+                                   <SplitSquareHorizontal size={14} className="text-blue-400"/> {t('videoEditor.split')}
                                </button>
-                               <button onClick={handleDeleteClip} disabled={!activeClip} title="Delete active clip" className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/20 border border-red-900/30 hover:bg-red-900/40 text-red-500 rounded-lg text-xs font-bold transition-colors whitespace-nowrap disabled:opacity-50">
-                                   <X size={14} strokeWidth={3} /> Delete
+                               <button onClick={handleDeleteClip} disabled={!activeClip} title={t('videoEditor.deleteActiveClip')} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/20 border border-red-900/30 hover:bg-red-900/40 text-red-500 rounded-lg text-xs font-bold transition-colors whitespace-nowrap disabled:opacity-50">
+                                   <X size={14} strokeWidth={3} /> {t('videoEditor.delete')}
                                </button>
                                <div className="w-px h-4 bg-dark-700 mx-2" />
-                               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest whitespace-nowrap">Auto-Split:</span>
+                               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest whitespace-nowrap">{t('videoEditor.autoSplit')}</span>
                                <button onClick={() => handleAutoSplitSegments(10)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">
-                                   <SplitSquareHorizontal size={14}/> 10 Segments
+                                   <SplitSquareHorizontal size={14}/> {t('videoEditor.tenSegments')}
                                </button>
                                
                                <div className="flex items-center bg-dark-800 rounded-lg pr-1 hover:bg-dark-700 transition-colors">
                                    <button onClick={() => handleAutoSplitDuration(splitInterval)} className="flex items-center gap-1.5 px-3 py-1.5 text-gray-300 hover:text-white transition-colors text-xs font-bold whitespace-nowrap">
-                                       <Layers size={14}/> Split Every
+                                       <Layers size={14}/> {t('videoEditor.splitEvery')}
                                    </button>
                                    <div className="relative flex items-center">
                                         <input type="number" min="1" max="3600" value={splitInterval} onChange={e => setSplitInterval(Number(e.target.value) || 0)} className="w-12 bg-slate-900 border border-slate-700 rounded text-center text-xs text-white py-1 outline-none appearance-none" />
@@ -339,14 +341,14 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                                             <option value={120}>2m</option>
                                         </select>
                                    </div>
-                                   <span className="text-xs font-bold text-gray-500 pl-1 pr-2">sec</span>
+                                   <span className="text-xs font-bold text-gray-500 pl-1 pr-2">{t('videoEditor.sec')}</span>
                                </div>
                            </div>
 
                        {activeClip && (
                            <div className="text-xs font-mono text-gray-400 flex flex-col items-end gap-1 flex-shrink-0">
-                               <span>{activeClip.start.toFixed(1)}s <span className="opacity-50 mx-1">to</span> {activeClip.end.toFixed(1)}s</span>
-                               <span className="text-blue-400 font-bold">{(activeClip.end - activeClip.start).toFixed(1)}s Length</span>
+                               <span>{activeClip.start.toFixed(1)}s <span className="opacity-50 mx-1">{t('videoEditor.to')}</span> {activeClip.end.toFixed(1)}s</span>
+                               <span className="text-blue-400 font-bold">{t('videoEditor.length', { seconds: (activeClip.end - activeClip.start).toFixed(1) })}</span>
                            </div>
                        )}
 
@@ -366,7 +368,7 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                         {/* Filmstrip Background */}
                         {thumbnails.length === 0 ? (
                            <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-                              <span className="text-xs text-blue-500 font-mono tracking-widest uppercase">Extracting Frames...</span>
+                              <span className="text-xs text-blue-500 font-mono tracking-widest uppercase">{t('videoEditor.extractingFrames')}</span>
                            </div>
                         ) : (
                            <div className="absolute inset-0 flex items-stretch overflow-hidden opacity-50 z-0">
@@ -388,7 +390,7 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                                             else setActiveClipId(clip.id);
                                          }}
                                     >
-                                         {!isActive && clips.length > 1 && <span className="text-[10px] font-black text-white/50 select-none pointer-events-none drop-shadow-md">CLIP {i+1}</span>}
+                                         {!isActive && clips.length > 1 && <span className="text-[10px] font-black text-white/50 select-none pointer-events-none drop-shadow-md">{t('videoEditor.clip', { number: i+1 })}</span>}
                                     </div>
                                     
                                     {/* Start Handle - Global */}
@@ -420,14 +422,14 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                     </div>
 
                     <div className="flex items-center justify-between mt-2 pt-4 border-t border-dark-700/50">
-                        <span className="text-sm font-bold text-gray-500">{clips.length} Clip{clips.length !== 1 && 's'} Found</span>
-                        
+                        <span className="text-sm font-bold text-gray-500">{t('videoEditor.clipsFound', { count: clips.length })}</span>
+
                         <div className="flex items-center gap-3">
                             <button onClick={() => setIsEditing(false)} className="px-5 py-2 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-dark-800 transition-colors">
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button onClick={triggerSavePrompt} disabled={isProcessing || thumbnails.length === 0 || !activeClip} className="px-6 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-500 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                                {isProcessing ? <><Loader2 size={16} className="animate-spin" /> {batchProgress ? `Processing ${batchProgress.current} / ${batchProgress.total}` : 'Transcoding...'}</> : <><Save size={16} /> Export {clips.length > 1 ? 'Clips...' : 'Clip'}</>}
+                                {isProcessing ? <><Loader2 size={16} className="animate-spin" /> {batchProgress ? t('videoEditor.processing', { current: batchProgress.current, total: batchProgress.total }) : t('videoEditor.transcoding')}</> : <><Save size={16} /> {clips.length > 1 ? t('videoEditor.exportClips') : t('videoEditor.exportClip')}</>}
                             </button>
                         </div>
                     </div>
@@ -438,29 +440,29 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
             {showSavePrompt && (
                 <div className="absolute inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center">
                     <div className="bg-dark-900 border border-dark-700 p-6 rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
-                        <h3 className="text-lg font-bold text-white mb-2">{exportMode === 'all' ? `Export All ${clips.length} Clips` : 'Export Active Clip'}</h3>
+                        <h3 className="text-lg font-bold text-white mb-2">{exportMode === 'all' ? t('videoEditor.exportAllTitle', { count: clips.length }) : t('videoEditor.exportActiveTitle')}</h3>
                         
                         {clips.length > 1 && (
                             <div className="flex items-center gap-2 mb-6 bg-dark-950 rounded-lg p-1">
-                                <button onClick={() => setExportMode('single')} className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-colors ${exportMode === 'single' ? 'bg-dark-800 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>Current Clip Only</button>
-                                <button onClick={() => setExportMode('all')} className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-colors ${exportMode === 'all' ? 'bg-dark-800 text-blue-400 shadow' : 'text-gray-500 hover:text-gray-300'}`}>All {clips.length} Clips</button>
+                                <button onClick={() => setExportMode('single')} className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-colors ${exportMode === 'single' ? 'bg-dark-800 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>{t('videoEditor.currentClipOnly')}</button>
+                                <button onClick={() => setExportMode('all')} className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-colors ${exportMode === 'all' ? 'bg-dark-800 text-blue-400 shadow' : 'text-gray-500 hover:text-gray-300'}`}>{t('videoEditor.allClips', { count: clips.length })}</button>
                             </div>
                         )}
 
                         {exportMode === 'single' ? (
                             <div className="space-y-4">
                                 <div className="bg-dark-800/50 border border-dark-700 p-4 rounded-xl">
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Save as New File</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">{t('videoEditor.saveAsNewFile')}</label>
                                     <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500 transition-colors" />
-                                    <button onClick={() => handleExecuteTrim(false)} className="w-full mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg transition-colors">Save Copy</button>
+                                    <button onClick={() => handleExecuteTrim(false)} className="w-full mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg transition-colors">{t('videoEditor.saveCopy')}</button>
                                 </div>
                                 <div className="relative">
                                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-dark-700"></div></div>
-                                   <div className="relative flex justify-center"><span className="bg-dark-900 px-3 text-xs text-gray-500 font-bold uppercase">OR</span></div>
+                                   <div className="relative flex justify-center"><span className="bg-dark-900 px-3 text-xs text-gray-500 font-bold uppercase">{t('videoEditor.or')}</span></div>
                                 </div>
                                 <div className="bg-red-900/10 border border-red-900/30 p-4 rounded-xl">
-                                   <p className="text-xs text-red-400 mb-3"><strong className="text-red-300">Warning:</strong> This will destructively overwrite `{originalName}`.</p>
-                                   <button onClick={() => handleExecuteTrim(true)} className="w-full px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 font-bold text-sm rounded-lg transition-colors">Replace Original File</button>
+                                   <p className="text-xs text-red-400 mb-3"><strong className="text-red-300">{t('videoEditor.warningLabel')}</strong> {t('videoEditor.overwriteWarning', { name: originalName })}</p>
+                                   <button onClick={() => handleExecuteTrim(true)} className="w-full px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 font-bold text-sm rounded-lg transition-colors">{t('videoEditor.replaceOriginal')}</button>
                                 </div>
                             </div>
                         ) : (
@@ -468,12 +470,12 @@ export function VideoEditor({ file, originalName, onSaveNewFile }: VideoEditorPr
                                 <div className="max-h-64 overflow-y-auto space-y-2 pr-2 no-scrollbar">
                                     {clips.map((clip, i) => (
                                         <div key={clip.id} className="flex flex-col gap-1">
-                                            <label className="text-[10px] text-gray-500 font-bold ml-1">CLIP {i+1} ({clip.start.toFixed(1)}s - {clip.end.toFixed(1)}s)</label>
+                                            <label className="text-[10px] text-gray-500 font-bold ml-1">{t('videoEditor.clipRangeLabel', { number: i+1, start: clip.start.toFixed(1), end: clip.end.toFixed(1) })}</label>
                                             <input type="text" value={batchNames[clip.id] || ''} onChange={e => setBatchNames(prev => ({...prev, [clip.id]: e.target.value}))} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500 transition-colors" />
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={() => handleExecuteTrim(false)} className="w-full mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg transition-colors shadow-lg shadow-blue-900/20">Save {clips.length} Files</button>
+                                <button onClick={() => handleExecuteTrim(false)} className="w-full mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg transition-colors shadow-lg shadow-blue-900/20">{t('videoEditor.saveFiles', { count: clips.length })}</button>
                             </div>
                         )}
 

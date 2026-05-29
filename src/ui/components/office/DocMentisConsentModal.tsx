@@ -6,29 +6,32 @@
  * The viewer WASM does not load until the user accepts.
  */
 import { ExternalLink, ShieldCheck, ShieldOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ConsentState } from './useDocMentisSettings';
 
 interface Props {
   onDecide: (v: ConsentState) => void;
 }
 
-const COLLECTED = [
-  { field: 'domain',          desc: 'Hostname of the embedding website',              example: 'example.com' },
-  { field: 'format',          desc: 'Document format opened',                          example: 'docx' },
-  { field: 'size_bucket',     desc: 'File size in 100 KB buckets (not exact)',         example: '3' },
-  { field: 'viewer_version',  desc: 'docMentis SDK version string',                    example: '0.5.19' },
-  { field: 'license_hash',    desc: 'SHA-256 hash of your licence key (empty if none)', example: 'a1b2c3…' },
-  { field: 'distinct_id',     desc: 'Anonymous random UUID stored in localStorage',    example: 'f47ac10b-…' },
-];
-
-const NOT_COLLECTED = [
-  'Document content, filenames, or URLs',
-  'Your identity, cookies, or session data',
-  'IP addresses (disabled at the collection endpoint)',
-  'Any personally identifiable information',
-];
-
 export function DocMentisConsentModal({ onDecide }: Props) {
+  const { t } = useTranslation();
+
+  const COLLECTED = [
+    { field: 'domain',          desc: t('office.consent.collected.domain'),      example: 'example.com' },
+    { field: 'format',          desc: t('office.consent.collected.format'),      example: 'docx' },
+    { field: 'size_bucket',     desc: t('office.consent.collected.sizeBucket'),  example: '3' },
+    { field: 'viewer_version',  desc: t('office.consent.collected.viewerVersion'), example: '0.5.19' },
+    { field: 'license_hash',    desc: t('office.consent.collected.licenseHash'), example: 'a1b2c3…' },
+    { field: 'distinct_id',     desc: t('office.consent.collected.distinctId'),  example: 'f47ac10b-…' },
+  ];
+
+  const NOT_COLLECTED = [
+    t('office.consent.notCollected.content'),
+    t('office.consent.notCollected.identity'),
+    t('office.consent.notCollected.ip'),
+    t('office.consent.notCollected.pii'),
+  ];
+
   return (
     <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-lg bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden my-auto">
@@ -37,33 +40,32 @@ export function DocMentisConsentModal({ onDecide }: Props) {
         <div className="px-6 pt-6 pb-4 border-b border-dark-700">
           <div className="flex items-center gap-3 mb-1">
             <ShieldCheck size={20} className="text-blue-400 shrink-0" />
-            <h2 className="text-base font-semibold text-white">Enable Office document preview?</h2>
+            <h2 className="text-base font-semibold text-white">{t('office.consent.title')}</h2>
           </div>
           <p className="text-xs text-gray-400 leading-relaxed mt-2">
-            Previewing DOCX, PPTX, and XLSX files uses the{' '}
+            {t('office.consent.introBefore')}{' '}
             <a
               href="https://github.com/docMentis/docmentis-udoc-viewer"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
             >
-              docMentis viewer <ExternalLink size={10} />
+              {t('office.consent.viewerLink')} <ExternalLink size={10} />
             </a>
-            . It sends a small anonymous telemetry event <strong className="text-gray-200">once per document opened</strong> to help the authors understand usage.
-            No file content is ever transmitted.
+            {t('office.consent.introAfter')} <strong className="text-gray-200">{t('office.consent.oncePerDocument')}</strong> {t('office.consent.introEnd')}
           </p>
         </div>
 
         {/* What is collected */}
         <div className="px-6 py-4 border-b border-dark-700">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">What is sent</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t('office.consent.whatIsSent')}</p>
           <div className="rounded-lg overflow-hidden border border-dark-600 text-xs">
             <table className="w-full">
               <thead>
                 <tr className="bg-dark-900 text-gray-500">
-                  <th className="text-left px-3 py-2 font-semibold">Field</th>
-                  <th className="text-left px-3 py-2 font-semibold">Description</th>
-                  <th className="text-left px-3 py-2 font-semibold hidden sm:table-cell">Example</th>
+                  <th className="text-left px-3 py-2 font-semibold">{t('office.consent.colField')}</th>
+                  <th className="text-left px-3 py-2 font-semibold">{t('office.consent.colDescription')}</th>
+                  <th className="text-left px-3 py-2 font-semibold hidden sm:table-cell">{t('office.consent.colExample')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
@@ -81,7 +83,7 @@ export function DocMentisConsentModal({ onDecide }: Props) {
 
         {/* What is NOT collected */}
         <div className="px-6 py-4 border-b border-dark-700">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">What is NOT sent</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('office.consent.whatIsNotSent')}</p>
           <ul className="space-y-1.5">
             {NOT_COLLECTED.map(item => (
               <li key={item} className="flex items-start gap-2 text-xs text-gray-400">
@@ -95,8 +97,8 @@ export function DocMentisConsentModal({ onDecide }: Props) {
         {/* Note about licence key */}
         <div className="px-6 py-3 border-b border-dark-700 bg-dark-900/50">
           <p className="text-xs text-gray-500">
-            <span className="text-gray-300 font-medium">Have a docMentis licence key?</span>{' '}
-            You can enter it in <span className="text-blue-400">Settings → Office Preview</span> to disable telemetry and remove the attribution badge.
+            <span className="text-gray-300 font-medium">{t('office.consent.licenceQuestion')}</span>{' '}
+            {t('office.consent.licenceHint')}
           </p>
         </div>
 
@@ -107,14 +109,14 @@ export function DocMentisConsentModal({ onDecide }: Props) {
             className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-dark-700 rounded-xl transition-colors w-full sm:w-auto justify-center"
           >
             <ShieldOff size={14} />
-            No thanks — disable preview
+            {t('office.consent.decline')}
           </button>
           <button
             onClick={() => onDecide('accepted')}
             className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl transition-colors w-full sm:w-auto justify-center"
           >
             <ShieldCheck size={14} />
-            Accept &amp; enable preview
+            {t('office.consent.accept')}
           </button>
         </div>
 

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Info, Folder as FolderIcon, FileIcon, Settings, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { GridItem } from '../../core/models/FilePair';
 
@@ -9,15 +11,15 @@ interface InspectorPanelProps {
 }
 
 /** Render a single scalar value as a readable string */
-function formatValue(v: unknown): string {
+function formatValue(v: unknown, t: TFunction): string {
   if (v === null || v === undefined) return '—';
-  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (typeof v === 'boolean') return v ? t('common.yes') : t('common.no');
   if (typeof v === 'number') return String(v);
   if (typeof v === 'string') return v || '—';
   if (Array.isArray(v)) {
     if (v.length === 0) return '—';
     // Array of scalars → comma-joined; array of objects → count label
-    if (typeof v[0] === 'object') return `${v.length} item${v.length !== 1 ? 's' : ''}`;
+    if (typeof v[0] === 'object') return t('inspector.itemsCount', { count: v.length });
     return v.join(', ');
   }
   return String(v);
@@ -25,6 +27,7 @@ function formatValue(v: unknown): string {
 
 /** Collapsible section for a nested metadata object */
 function MetaSection({ label, value }: { label: string; value: Record<string, unknown> }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const entries = Object.entries(value).filter(([, v]) => v !== null && v !== undefined && v !== '');
   if (entries.length === 0) return null;
@@ -52,7 +55,7 @@ function MetaSection({ label, value }: { label: string; value: Record<string, un
                     {subEntries.map(([sk, sv]) => (
                       <div key={sk} className="flex gap-2 items-start">
                         <span className="text-gray-500 text-[10px] shrink-0 w-20 truncate">{sk}</span>
-                        <span className="text-gray-300 font-mono text-[10px] break-all">{formatValue(sv)}</span>
+                        <span className="text-gray-300 font-mono text-[10px] break-all">{formatValue(sv, t)}</span>
                       </div>
                     ))}
                   </div>
@@ -62,7 +65,7 @@ function MetaSection({ label, value }: { label: string; value: Record<string, un
             return (
               <div key={k} className="flex gap-2 items-start">
                 <span className="text-gray-500 text-[10px] shrink-0 w-24 truncate">{k}</span>
-                <span className="text-gray-300 font-mono text-[10px] break-all">{formatValue(v)}</span>
+                <span className="text-gray-300 font-mono text-[10px] break-all">{formatValue(v, t)}</span>
               </div>
             );
           })}
@@ -73,6 +76,7 @@ function MetaSection({ label, value }: { label: string; value: Record<string, un
 }
 
 export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPanelProps) {
+  const { t } = useTranslation();
   const formatBytes = (bytes: number, decimals = 2) => {
     if (!+bytes) return '0 Bytes';
     const k = 1024;
@@ -87,7 +91,7 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-6 text-center h-full">
           <Info size={48} className="mb-4 opacity-30" />
-          <p>Select an item to view properties...</p>
+          <p>{t('inspector.emptyState')}</p>
         </div>
       );
     }
@@ -124,11 +128,11 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
 
         {/* File system properties */}
         <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Properties</h4>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('inspector.properties')}</h4>
           <div className="bg-dark-900/50 rounded-lg p-3 space-y-2 border border-dark-700/50">
-            <div className="flex justify-between"><span className="text-gray-500">Kind</span><span className="text-gray-300">{isFile ? 'File' : 'Folder'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Size</span><span className="text-gray-300">{size}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Modified</span><span className="text-gray-300 text-xs">{modifiedDate}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('inspector.kind')}</span><span className="text-gray-300">{isFile ? t('inspector.file') : t('inspector.folder')}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('inspector.size')}</span><span className="text-gray-300">{size}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('inspector.modified')}</span><span className="text-gray-300 text-xs">{modifiedDate}</span></div>
           </div>
         </div>
 
@@ -136,7 +140,7 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
         {meta && (scalarEntries.length > 0 || objectEntries.length > 0) && (
           <div className="space-y-2">
             <h4 className="flex items-center gap-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-              <Settings size={14} /> Metadata
+              <Settings size={14} /> {t('inspector.metadata')}
               {meta.$version != null && <span className="ml-auto text-indigo-400/40 normal-case font-normal">v{String(meta.$version)}</span>}
             </h4>
 
@@ -146,7 +150,7 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
                 {scalarEntries.map(([k, v]) => (
                   <div key={k} className="flex gap-2 items-start">
                     <span className="text-indigo-300/60 text-[10px] shrink-0 w-24 truncate">{k}</span>
-                    <span className="text-gray-300 font-mono text-[10px] break-all">{formatValue(v as unknown)}</span>
+                    <span className="text-gray-300 font-mono text-[10px] break-all">{formatValue(v as unknown, t)}</span>
                   </div>
                 ))}
               </div>
@@ -165,7 +169,7 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
   if (!isOpen) {
     return (
       <div className="border-l border-dark-700 bg-dark-800 shrink-0 flex flex-col items-center pt-3 w-8 z-20">
-        <button onClick={onToggle} title="Show properties panel" className="p-1 text-gray-500 hover:text-blue-400 transition-colors">
+        <button onClick={onToggle} title={t('inspector.showPanel')} className="p-1 text-gray-500 hover:text-blue-400 transition-colors">
           <PanelRightOpen size={15} />
         </button>
       </div>
@@ -176,8 +180,8 @@ export function InspectorPanel({ selectedItem, isOpen, onToggle }: InspectorPane
     <div className="w-72 border-l border-dark-700 flex flex-col overflow-hidden shadow-2xl shrink-0 z-20 bg-dark-800">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-dark-700 bg-dark-900 shrink-0">
         <Info size={14} className="text-blue-400" />
-        <span className="text-xs font-semibold text-blue-400 flex-1">Properties</span>
-        <button onClick={onToggle} title="Hide properties panel" className="p-0.5 text-gray-500 hover:text-blue-400 transition-colors">
+        <span className="text-xs font-semibold text-blue-400 flex-1">{t('inspector.properties')}</span>
+        <button onClick={onToggle} title={t('inspector.hidePanel')} className="p-0.5 text-gray-500 hover:text-blue-400 transition-colors">
           <PanelRightClose size={15} />
         </button>
       </div>

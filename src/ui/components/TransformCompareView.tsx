@@ -22,6 +22,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GridItem } from '../../core/models/FilePair';
 import { GroupedItems } from './FileGrid';
 import { useThumbnails } from '../hooks/useThumbnails';
@@ -129,6 +130,7 @@ function CompareViewer({
   layout: CompareLayout;
   onCompareInfo?: (file: File) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [sliderPos, setSliderPos] = useState(50);
 
   if (loading) {
@@ -136,7 +138,7 @@ function CompareViewer({
       <div className="w-full h-full flex items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3 text-blue-400">
           <Loader2 size={36} className="animate-spin" />
-          <span className="text-sm">Processing…</span>
+          <span className="text-sm">{t('transformCompare.processing')}</span>
         </div>
       </div>
     );
@@ -147,7 +149,7 @@ function CompareViewer({
       <div className="w-full h-full flex items-center justify-center bg-black text-gray-600">
         <div className="flex flex-col items-center gap-2">
           <SplitSquareHorizontal size={48} />
-          <p className="text-sm">Select a file to preview</p>
+          <p className="text-sm">{t('transformCompare.selectFile')}</p>
         </div>
       </div>
     );
@@ -156,7 +158,7 @@ function CompareViewer({
   if (result.noPreview) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-black text-gray-500">
-        <p className="text-sm text-center px-8">{result.noPreviewReason ?? 'No preview available for this item.'}</p>
+        <p className="text-sm text-center px-8">{result.noPreviewReason ?? t('transformCompare.noPreview')}</p>
       </div>
     );
   }
@@ -174,10 +176,10 @@ function CompareViewer({
           />
         )}
         <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none z-10">
-          {result.beforeLabel ?? 'Before'}
+          {result.beforeLabel ?? t('transformCompare.before')}
         </div>
         <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none z-10">
-          {result.afterLabel ?? 'After'}
+          {result.afterLabel ?? t('transformCompare.after')}
         </div>
         <input
           type="range" min="0" max="100"
@@ -194,7 +196,7 @@ function CompareViewer({
           </div>
         </div>
         {onCompareInfo && focusedFile && (
-          <button onClick={() => onCompareInfo(focusedFile)} className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-blue-600 text-white rounded-full transition-colors z-30" title="File info">
+          <button onClick={() => onCompareInfo(focusedFile)} className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-blue-600 text-white rounded-full transition-colors z-30" title={t('transformCompare.fileInfo')}>
             <Info size={14} />
           </button>
         )}
@@ -208,10 +210,10 @@ function CompareViewer({
       <div className="flex-1 relative flex items-center justify-center overflow-hidden border-r border-dark-700/50">
         {result.beforeUrl
           ? <img src={result.beforeUrl} className="max-w-full max-h-full object-contain" alt="before" />
-          : <span className="text-gray-600 text-sm">No input</span>
+          : <span className="text-gray-600 text-sm">{t('transformCompare.noInput')}</span>
         }
         <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
-          {result.beforeLabel ?? 'Before'}
+          {result.beforeLabel ?? t('transformCompare.before')}
         </div>
       </div>
 
@@ -219,16 +221,16 @@ function CompareViewer({
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {result.afterUrl
           ? <img src={result.afterUrl} className="max-w-full max-h-full object-contain" alt="after" />
-          : <span className="text-gray-600 text-sm">No output</span>
+          : <span className="text-gray-600 text-sm">{t('transformCompare.noOutput')}</span>
         }
         <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
-          {result.afterLabel ?? 'After'}
+          {result.afterLabel ?? t('transformCompare.after')}
         </div>
         {onCompareInfo && focusedFile && (
           <button
             onClick={() => onCompareInfo(focusedFile)}
             className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-blue-600 text-white rounded-full transition-colors"
-            title="File info"
+            title={t('transformCompare.fileInfo')}
           >
             <Info size={14} />
           </button>
@@ -253,6 +255,7 @@ export function TransformCompareView({
   triggerProcessRef,
   viewMode = 'filmstrip',
 }: TransformCompareViewProps) {
+  const { t } = useTranslation();
   const allItems = groups.flatMap(g => g.items);
   const [compareLayout, setCompareLayout] = useState<CompareLayout>('side-by-side');
 
@@ -397,14 +400,14 @@ export function TransformCompareView({
         {/* Compare layout toggle */}
         <div className="flex bg-dark-900 p-0.5 rounded-lg border border-dark-600 shrink-0">
           <button
-            title="Side by Side"
+            title={t('transformCompare.sideBySide')}
             onClick={() => setCompareLayout('side-by-side')}
             className={`p-1.5 rounded-md transition-colors ${compareLayout === 'side-by-side' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}
           >
             <Columns2 size={15} />
           </button>
           <button
-            title="Slider Wipe"
+            title={t('transformCompare.sliderWipe')}
             onClick={() => setCompareLayout('slider')}
             className={`p-1.5 rounded-md transition-colors ${compareLayout === 'slider' ? 'bg-dark-700 text-white' : 'text-gray-500 hover:text-white'}`}
           >

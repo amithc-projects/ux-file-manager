@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Cloud, Settings } from 'lucide-react';
 import { StcConfig } from './SettingsModal';
 
@@ -11,6 +12,7 @@ interface SendToCloudModalProps {
 }
 
 export function SendToCloudModal({ isOpen, files, config, onClose, onOpenSettings }: SendToCloudModalProps) {
+  const { t } = useTranslation();
   const stcRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
 
@@ -50,8 +52,8 @@ export function SendToCloudModal({ isOpen, files, config, onClose, onOpenSetting
           <div className="flex items-center gap-2">
             <Cloud size={18} className="text-blue-400" />
             <h2 className="text-base font-semibold text-white">
-              Send to Cloud
-              <span className="ml-2 text-sm font-normal text-gray-400">{files.length} file{files.length !== 1 ? 's' : ''}</span>
+              {t('sendToCloud.title')}
+              <span className="ml-2 text-sm font-normal text-gray-400">{t('sendToCloud.fileCount', { count: files.length })}</span>
             </h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-dark-700 rounded-lg text-gray-400 hover:text-white transition-colors">
@@ -64,16 +66,16 @@ export function SendToCloudModal({ isOpen, files, config, onClose, onOpenSetting
 
         {/* Settings hint footer */}
         <div className="px-5 py-3 border-t border-dark-700 bg-dark-900/50 shrink-0 flex items-center gap-2 text-xs text-gray-500">
-          <span>Having trouble?</span>
+          <span>{t('sendToCloud.havingTrouble')}</span>
           {onOpenSettings ? (
             <button
               onClick={() => { onClose(); onOpenSettings(); }}
               className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
             >
-              <Settings size={11} /> Check your cloud settings
+              <Settings size={11} /> {t('sendToCloud.checkSettings')}
             </button>
           ) : (
-            <span>Check your cloud endpoint and token in Settings.</span>
+            <span>{t('sendToCloud.checkSettingsHint')}</span>
           )}
         </div>
       </div>

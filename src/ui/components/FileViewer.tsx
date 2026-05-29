@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import JSZip from 'jszip';
 import ReactMarkdown from 'react-markdown';
 import { GridItem } from '../../core/models/FilePair';
@@ -8,6 +9,7 @@ import { ZoomableImage } from './ZoomableImage';
 import { OfficeViewer } from './office/OfficeViewer';
 
 function JsonNode({ nodeKey, value, isLast }: { nodeKey?: string, value: any, isLast: boolean }) {
+   const { t } = useTranslation();
    const [expanded, setExpanded] = useState(true);
    const isObject = value !== null && typeof value === 'object';
    const isArray = Array.isArray(value);
@@ -40,7 +42,7 @@ function JsonNode({ nodeKey, value, isLast }: { nodeKey?: string, value: any, is
              )}
              {nodeKey && <span className="text-gray-300 font-semibold">"{nodeKey}": </span>}
              <span className="text-gray-500">{openBracket}</span>
-             {!expanded && !isEmpty && <span className="text-gray-500 text-xs px-2 italic">... {Object.keys(value).length} items ...</span>}
+             {!expanded && !isEmpty && <span className="text-gray-500 text-xs px-2 italic">{t('fileViewer.itemsCollapsed', { count: Object.keys(value).length })}</span>}
              {(!expanded || isEmpty) && <span><span className="text-gray-500">{closeBracket}</span>{!isLast && <span className="text-gray-500">,</span>}</span>}
           </div>
           {expanded && !isEmpty && (
@@ -60,6 +62,7 @@ function JsonNode({ nodeKey, value, isLast }: { nodeKey?: string, value: any, is
 }
 
 function ZipViewer({ file }: { file: File }) {
+    const { t } = useTranslation();
     const [files, setFiles] = useState<string[]>([]);
     useEffect(() => {
         let isActive = true;
@@ -78,7 +81,7 @@ function ZipViewer({ file }: { file: File }) {
         <div className="w-full h-full overflow-y-auto p-6 bg-dark-900 border border-dark-700 shadow-inner rounded-xl">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-dark-700">
                <FileIcon className="text-orange-500" size={24} />
-               <h3 className="text-gray-200 font-bold font-mono tracking-wider">Archive Contents</h3>
+               <h3 className="text-gray-200 font-bold font-mono tracking-wider">{t('fileViewer.archiveContents')}</h3>
             </div>
             <ul className="space-y-1">
                 {files.map(f => (
@@ -140,11 +143,12 @@ function ImageViewer({ url }: { url: string }) {
 }
 
 function CodeViewer({ text, item }: { text: string | null, item: GridItem }) {
-    if (text === null) return <div className="text-gray-400 p-8">Parsing Markup stream...</div>;
+    const { t } = useTranslation();
+    if (text === null) return <div className="text-gray-400 p-8">{t('fileViewer.parsingMarkup')}</div>;
     return (
         <div className="w-full h-full overflow-hidden p-0 bg-dark-950 text-gray-300 border border-dark-700 shadow-inner rounded-xl flex flex-col">
             <div className="px-4 py-3 bg-dark-900 border-b border-dark-700 flex items-center justify-between shadow-sm shrink-0">
-               <span className="font-mono text-[10px] uppercase font-bold text-gray-500 tracking-widest">Source String</span>
+               <span className="font-mono text-[10px] uppercase font-bold text-gray-500 tracking-widest">{t('fileViewer.sourceString')}</span>
                <span className="font-mono text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">{(item as any).pair?.id}</span>
             </div>
             <div className="flex-1 overflow-auto p-4 shrink-0 h-0 min-h-0 relative select-text">
@@ -155,22 +159,24 @@ function CodeViewer({ text, item }: { text: string | null, item: GridItem }) {
 }
 
 function HtmlViewer({ text }: { text: string | null, item: GridItem }) {
-    if (text === null) return <div className="text-gray-400 p-8">Parsing Markup stream...</div>;
+    const { t } = useTranslation();
+    if (text === null) return <div className="text-gray-400 p-8">{t('fileViewer.parsingMarkup')}</div>;
     return (
         <div className="w-full h-full overflow-hidden bg-dark-950 border border-dark-700 shadow-inner rounded-xl flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-dark-700">
             <div className="flex-1 overflow-auto p-4 flex flex-col relative h-full">
-               <span className="absolute top-2 right-4 font-mono text-[10px] font-bold text-gray-500 bg-dark-900 border border-dark-700 shadow-sm px-2 py-0.5 rounded z-10 pointer-events-none tracking-widest uppercase">Dom Root</span>
+               <span className="absolute top-2 right-4 font-mono text-[10px] font-bold text-gray-500 bg-dark-900 border border-dark-700 shadow-sm px-2 py-0.5 rounded z-10 pointer-events-none tracking-widest uppercase">{t('fileViewer.domRoot')}</span>
                <pre className="font-mono text-[13px] leading-relaxed text-gray-300 min-w-full block pt-6"><code className="block w-full">{text}</code></pre>
             </div>
             <div className="flex-1 h-full bg-white relative flex flex-col overflow-hidden">
-               <span className="absolute top-2 right-4 font-mono text-[10px] font-bold shadow bg-gray-100 border border-gray-300 text-gray-500 px-2 py-0.5 rounded z-10 pointer-events-none tracking-widest uppercase">Sandbox Frame</span>
+               <span className="absolute top-2 right-4 font-mono text-[10px] font-bold shadow bg-gray-100 border border-gray-300 text-gray-500 px-2 py-0.5 rounded z-10 pointer-events-none tracking-widest uppercase">{t('fileViewer.sandboxFrame')}</span>
                <iframe className="w-full h-full border-none flex-1 mt-0 bg-white" srcDoc={text} sandbox="allow-scripts allow-same-origin" />
             </div>
         </div>
     );
 }
 
-export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, onOpenSettings }: { item: GridItem, forceText?: boolean, markdownContent?: string, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void>, onOpenSettings?: () => void }) {
+export function FileViewer({ item, forceText, markdownContent, disableOfficeViewer, onSaveNewFile, onOpenSettings }: { item: GridItem, forceText?: boolean, markdownContent?: string, disableOfficeViewer?: boolean, onSaveNewFile?: (blob:Blob, name:string, options?: {overwriteOriginal?: boolean})=>Promise<void>, onOpenSettings?: () => void }) {
+   const { t } = useTranslation();
    const [fileObj, setFileObj] = useState<File | null>(null);
    const [textData, setTextData] = useState<string | null>(null);
    const [error, setError] = useState(false);
@@ -239,7 +245,7 @@ export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, on
 
    const ext = item.pair.id.split('.').pop()?.toLowerCase() || '';
 
-   if (error) return <div className="text-red-400 flex items-center gap-2 m-auto p-4 bg-red-900/20 border border-red-500/50 rounded-xl"><FileIcon size={20} /> Access Error Processing Stream</div>;
+   if (error) return <div className="text-red-400 flex items-center gap-2 m-auto p-4 bg-red-900/20 border border-red-500/50 rounded-xl"><FileIcon size={20} /> {t('fileViewer.accessError')}</div>;
    if (!fileObj) return (
        <div className="flex flex-col items-center justify-center m-auto opacity-50 space-y-4">
            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -259,6 +265,17 @@ export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, on
    const isHtml   = ['html', 'htm'].includes(ext);
    const isOffice = ['docx', 'pptx', 'xlsx'].includes(ext);
 
+   if (isOffice && disableOfficeViewer) {
+      return (
+         <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-8 opacity-70 text-center">
+            <FileIcon size={28} className="text-gray-500" />
+            <p className="text-gray-300 font-semibold text-sm">{t('fileViewer.officeUnavailable')}</p>
+            <p className="text-gray-500 text-xs leading-relaxed max-w-xs">
+               {t('fileViewer.officeDisabled', { ext: ext.toUpperCase() })}
+            </p>
+         </div>
+      );
+   }
    if (isOffice) return <OfficeViewer file={fileObj} ext={ext as 'docx' | 'pptx' | 'xlsx'} onOpenSettings={onOpenSettings} />;
    if (isImage) return <MediaViewer file={fileObj} type="image" />;
    if (isVideo) {
@@ -272,7 +289,7 @@ export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, on
    if (isHtml) return <HtmlViewer text={textData} item={item} />;
 
    if (isJson) {
-       if (textData === null) return <div className="text-gray-400 p-8">Parsing JSON stream...</div>;
+       if (textData === null) return <div className="text-gray-400 p-8">{t('fileViewer.parsingJson')}</div>;
        try {
            const obj = JSON.parse(textData);
            return (
@@ -282,12 +299,12 @@ export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, on
                </div>
            );
        } catch (e) {
-           return <div className="text-red-400 bg-red-900/20 p-4 font-mono border border-red-500/50 rounded-xl my-auto">Malformed JSON payload string.</div>;
+           return <div className="text-red-400 bg-red-900/20 p-4 font-mono border border-red-500/50 rounded-xl my-auto">{t('fileViewer.malformedJson')}</div>;
        }
    }
 
    if (isMd) {
-       if (textData === null) return <div className="text-gray-400 p-8">Parsing Markup stream...</div>;
+       if (textData === null) return <div className="text-gray-400 p-8">{t('fileViewer.parsingMarkup')}</div>;
        return (
            <div className="w-full h-full overflow-y-auto p-6 md:p-10 bg-dark-900 text-gray-300 border border-dark-700 shadow-inner rounded-xl max-w-none text-left">
                <ReactMarkdown
@@ -325,7 +342,7 @@ export function FileViewer({ item, forceText, markdownContent, onSaveNewFile, on
        <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in-95 duration-300 opacity-60 m-auto">
            <FileIcon size={128} className="text-gray-500 pointer-events-none" />
            <h2 className="text-xl font-bold font-mono tracking-tight max-w-[80vw] truncate text-white">{item.pair.id}</h2>
-           <span className="text-sm bg-dark-700 text-gray-300 px-3 py-1 rounded-full border border-dark-600">Preview format not supported natively.</span>
+           <span className="text-sm bg-dark-700 text-gray-300 px-3 py-1 rounded-full border border-dark-600">{t('fileViewer.unsupportedFormat')}</span>
        </div>
    );
 }

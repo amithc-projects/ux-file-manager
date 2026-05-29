@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { GridItem } from '../../core/models/FilePair';
 import { useThumbnails } from '../hooks/useThumbnails';
 import { FileIcon, Image as ImageIcon, Folder, Film, Check, Music, Play, Braces, FileText, FileCode, Archive, Hash } from 'lucide-react';
@@ -54,6 +55,7 @@ interface FileGridItemProps {
 
 
 function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, viewMode, onClick, onDoubleClick, onContextMenu, onItemHover, onItemLeave }: FileGridItemProps) {
+  const { t } = useTranslation();
   const isFile = item.type === 'file';
   const pair = isFile ? item.pair : undefined;
 
@@ -152,7 +154,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         <div className="flex-1 flex items-center gap-2 truncate pointer-events-none">
           <p className="text-sm font-medium truncate text-gray-200" title={itemName}>{itemName}</p>
           {isFile && pair!.sidecarHandle && (
-            <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" title="Has metadata" />
+            <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" title={t('fileGrid.hasMetadata')} />
           )}
         </div>
         <div className="flex items-center justify-end gap-6 shrink-0 text-right pointer-events-none pr-2">
@@ -162,7 +164,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
                  <p className="text-xs text-gray-500 w-40 text-right">{pair!.lastModified ? new Date(pair!.lastModified).toLocaleString() : ''}</p>
               </>
            ) : (
-              <p className="text-xs text-gray-500 w-40 text-right">Folder</p>
+              <p className="text-xs text-gray-500 w-40 text-right">{t('fileGrid.folder')}</p>
            )}
         </div>
       </div>
@@ -185,7 +187,7 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         </div>
         {isVideo && <VideoBadge />}
         {isFile && pair!.sidecarHandle && (
-           <div className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-400 shadow-sm z-10 pointer-events-none" title="Has metadata" />
+           <div className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-400 shadow-sm z-10 pointer-events-none" title={t('fileGrid.hasMetadata')} />
         )}
       </div>
       <div className="p-3 border-t border-dark-700/50 flex-1 truncate pointers-none">
@@ -194,9 +196,9 @@ function FileGridItem({ item, isSelected, selectionOrderIndex, totalSelected, vi
         </p>
         <div className="flex items-center justify-between mt-1">
            <p className="text-xs text-gray-500">
-             {!isFile ? 'Folder' : pair!.size ? `${(pair!.size / (1024 * 1024) >= 1) ? (pair!.size / (1024 * 1024)).toFixed(1) + ' MB' : (pair!.size / 1024).toFixed(1) + ' KB'}` : 'Unknown Size'}
+             {!isFile ? t('fileGrid.folder') : pair!.size ? `${(pair!.size / (1024 * 1024) >= 1) ? (pair!.size / (1024 * 1024)).toFixed(1) + ' MB' : (pair!.size / 1024).toFixed(1) + ' KB'}` : t('fileGrid.unknownSize')}
            </p>
-           {isFile && pair!.sidecarHandle && <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" title="Has metadata" />}
+           {isFile && pair!.sidecarHandle && <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" title={t('fileGrid.hasMetadata')} />}
         </div>
       </div>
     </div>
@@ -220,14 +222,25 @@ interface FileGridProps {
   onItemLeave?: () => void;
 }
 
+const GROUP_NAME_KEYS: Record<string, string> = {
+  'Navigation': 'fileGrid.groups.navigation',
+  'Images': 'fileGrid.groups.images',
+  'Documents': 'fileGrid.groups.documents',
+  'Videos': 'fileGrid.groups.videos',
+  'Other Files': 'fileGrid.groups.otherFiles',
+  'Folders': 'fileGrid.groups.folders',
+};
+
 export function FileGrid({ groups, selectedIdsArray, viewMode, thumbnailSize = 160, onItemClick, onItemDoubleClick, onItemContextMenu, onItemHover, onItemLeave }: FileGridProps) {
+  const { t } = useTranslation();
+  const translateGroup = (name: string) => GROUP_NAME_KEYS[name] ? t(GROUP_NAME_KEYS[name]) : name;
   if (groups.length === 0 || (groups.length === 1 && groups[0].items.length === 0)) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
         <div className="w-16 h-16 rounded-full bg-dark-800 flex items-center justify-center border border-dark-700">
            <FileIcon size={24} />
         </div>
-        <p>No items found.</p>
+        <p>{t('fileGrid.noItems')}</p>
       </div>
     );
   }
@@ -292,7 +305,7 @@ export function FileGrid({ groups, selectedIdsArray, viewMode, thumbnailSize = 1
       {groups.map((group, idx) => (
         <div key={idx} className="w-full max-w-screen-2xl mx-auto">
           {group.groupName && group.items.length > 0 && (
-             <h3 className="text-xl font-bold mb-4 text-gray-300 border-b border-dark-700 pb-2">{group.groupName}</h3>
+             <h3 className="text-xl font-bold mb-4 text-gray-300 border-b border-dark-700 pb-2">{translateGroup(group.groupName)}</h3>
           )}
           {group.items.length > 0 && renderItems(group.items)}
         </div>

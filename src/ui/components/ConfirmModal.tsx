@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertOctagon, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -16,13 +17,16 @@ export function ConfirmModal({
   isOpen, 
   title, 
   message, 
-  confirmText = 'Confirm', 
-  cancelText = 'Cancel', 
-  onConfirm, 
-  onCancel, 
-  isDestructive = false 
+  confirmText,
+  cancelText,
+  onConfirm,
+  onCancel,
+  isDestructive = false
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
   if (!isOpen) return null;
+  const confirmLabel = confirmText ?? t('common.confirm');
+  const cancelLabel = cancelText ?? t('common.cancel');
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -57,7 +61,7 @@ export function ConfirmModal({
             onClick={onCancel}
             className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-dark-700 transition-colors"
           >
-            {cancelText}
+            {cancelLabel}
           </button>
           <button 
             onClick={onConfirm}
@@ -67,7 +71,7 @@ export function ConfirmModal({
                 : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
             }`}
           >
-            {confirmText}
+            {confirmLabel}
           </button>
         </div>
 

@@ -7,6 +7,7 @@
  *   hidden-files-message="5 rejected files are hidden"
  */
 
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 
 interface HiddenFilesWarningProps {
@@ -15,9 +16,10 @@ interface HiddenFilesWarningProps {
 }
 
 export function HiddenFilesWarning({ count, message }: HiddenFilesWarningProps) {
+  const { t } = useTranslation();
   if (!count || count <= 0) return null;
 
-  const text = message || `${count} file${count !== 1 ? 's' : ''} in this folder are hidden`;
+  const text = message || t('hiddenFiles.warning', { count });
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/15 border-b border-orange-500/30 text-orange-400 text-xs shrink-0">

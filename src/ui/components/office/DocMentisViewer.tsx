@@ -5,6 +5,7 @@
  * loads the given File, and tears everything down on unmount.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { UDocClient as UDocClientType } from '@docmentis/udoc-viewer';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function DocMentisViewer({ file, licenseKey }: Props) {
+  const { t } = useTranslation();
   const containerRef  = useRef<HTMLDivElement>(null);
   const clientRef     = useRef<UDocClientType | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,11 +27,12 @@ export function DocMentisViewer({ file, licenseKey }: Props) {
 
     async function init() {
       try {
-        // Dynamic import keeps docMentis out of the main IIFE bundle.
-        // In the web app (dev/PWA) Vite resolves this from node_modules.
-        // In the Chrome extension the consumer provides an import map that
-        // maps '@docmentis/udoc-viewer' → the vendored ESM files.
-        const { UDocClient } = await import(/* @vite-ignore */ '@docmentis/udoc-viewer');
+        // Dynamic import keeps docMentis out of the main IIFE bundle. In dev,
+        // Vite resolves this bare specifier from node_modules. In the IIFE
+        // build it's marked external and rewritten to the vendored ESM via
+        // Rollup's output.paths (→ ./vendor/docmentis/index.js), so no import
+        // map is needed — compatible with the Chrome extension's MV3 CSP.
+        const { UDocClient } = await import('@docmentis/udoc-viewer');
 
         const client = await UDocClient.create({
           license: licenseKey || undefined,
@@ -43,7 +46,7 @@ export function DocMentisViewer({ file, licenseKey }: Props) {
 
         await viewer.load(file);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? 'Failed to load document');
+        if (!cancelled) setError(e?.message ?? t('office.failedToLoad'));
       }
     }
 
